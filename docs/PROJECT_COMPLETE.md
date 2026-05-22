@@ -1,6 +1,6 @@
 # Brows VPN — Статус проекта (архив)
 
-> **📦 Архивный документ.** Актуальный статус: [CURRENT_STATUS.md](./CURRENT_STATUS.md) (extension **v2.2.0**, v2 complete).  
+> **📦 Архивный документ.** Актуальный статус: [CURRENT_STATUS.md](./CURRENT_STATUS.md) (extension **v2.2.1**, v2 complete).  
 > Ниже — историческая запись аудита 2026-05-22, когда docs показывали ~40% MVP.
 
 ---

@@ -734,8 +734,8 @@ interface LogEntry {
 |-----------|--------|
 | Chrome length-prefixed framing (4 byte LE + JSON) | ✅ `internal/messaging/host.go` |
 | JSON host manifest + `allowed_origins` | ✅ `com.browsvpn.host.json` |
-| Registry → path to manifest | ✅ `setup_registry.bat` |
-| Caller origin (argv) + `allowed_origins` manifest | ✅ v2.2.1 — см. [SECURITY.md](./SECURITY.md) |
+| Registry → path to manifest | ✅ `install.ps1` / `setup_registry.bat` |
+| Caller origin fail-closed gate | ✅ v2.2.1 — `origin.go` deny if manifest missing/broken/empty/placeholder; `[a-p]{32}` only — [SECURITY.md](./SECURITY.md) |
 
 ### Commands
 

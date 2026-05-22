@@ -17,6 +17,7 @@ powershell -File ..\scripts\check-env.ps1
 cd ..
 node scripts/test-pac-whitelist.js
 node scripts/test-settings-import-export.js
+node scripts/validate-extension-assets.js
 ```
 
 CI: `.github/workflows/test.yml` (Go + Node scripts на push/PR).
@@ -69,32 +70,27 @@ go build -o browsvpn-proxy.exe ./cmd
 
 **1.** Убедитесь, что автотесты прошли (см. Часть A).
 
-**2.** Зарегистрируйте native host (если ещё не сделано):
+**2.** Установите native host (manifest + registry):
+
 ```powershell
 cd D:\Projects\Brows_vpn\proxy-service
-.\setup_registry.bat
+.\install.ps1 -ExtensionId ВАШ_EXTENSION_ID -Build
 ```
+
+Если `browsvpn-proxy.exe` уже собран, флаг `-Build` можно опустить. Без `-ExtensionId` скрипт спросит ID интерактивно.
 
 **3.** Загрузите расширение:
 - Откройте `chrome://extensions/`
 - Включите **Режим разработчика**
 - **Загрузить распакованное расширение** → папка `D:\Projects\Brows_vpn\extension`
 
-**4.** Скопируйте **Extension ID** (32 символа, например `abcdefghijklmnopqrstuvwxyzabcdef`)
-
-**5.** Обновите `allowed_origins`:
-```powershell
-cd D:\Projects\Brows_vpn\proxy-service
-powershell -File update_allowed_origins.ps1 -ExtensionId ВАШ_EXTENSION_ID
-```
-
-**6.** **Полностью закройте Chrome** (все окна) и откройте снова.
+**4.** **Полностью закройте Chrome** (все окна) и откройте снова.
 
 ---
 
 ### B2. Настройка расширения
 
-**7.** Правый клик по иконке Brows VPN → **Settings** (или `options.html`)
+**5.** Правый клик по иконке Brows VPN → **Settings** (или `options.html`)
 
 **8.** Вставьте ваш **VLESS URL** → **Save Configuration**
 
@@ -152,8 +148,8 @@ netstat -an | findstr 10808
 
 | Симптом | Решение |
 |---------|---------|
-| `Native messaging host not found` | `setup_registry.bat`, перезапуск Chrome |
-| `Access to extension denied` | `update_allowed_origins.ps1` с правильным ID |
+| `Native messaging host not found` | `.\install.ps1 -ExtensionId ID -Build`, перезапуск Chrome |
+| `Access to extension denied` | `.\install.ps1 -ExtensionId ID` с правильным 32-символьным ID |
 | `Failed to start Xray` / port bind | Используйте порт **10808**, не 1080 |
 | `invalid password` в логах | VLESS `pbk` должен быть валидный X25519 public key |
 | VPN enabled, но сайты не проксируются | Проверьте PAC: домен в whitelist, SOCKS port = 10808 |

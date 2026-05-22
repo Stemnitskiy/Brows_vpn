@@ -200,12 +200,12 @@
 |---|--------|-------|
 | 1 | P0: validation в background, PAC port, diagnostics redact | ✅ `validators.js`, `background.js` |
 | 2 | P0: single-instance, config 0600 + wipe | ✅ `singleinstance`, `controller.go`, `handler.go` |
-| 3 | P1: NM via allowed_origins (Chrome standard), export без секретов, CSP | ✅ `origin.go`, `update_allowed_origins.ps1`, `options.*` |
+| 3 | P1: NM via allowed_origins + fail-closed origin gate, export без секретов, CSP | ✅ `origin.go`, `install.ps1`, `options.*` |
 | 4 | P1: xray integrity sidecar | ✅ `integrity.go` |
 | 5 | P2: CI, go.sum, WebRTC/incognito basics | ✅ `.github/workflows`, `manifest privacy` |
 | 6 | Docs sync | ✅ `SECURITY.md`, `README`, `ROADMAP`, … |
 
-**Проверка:** `go test ./...`, node scripts, `update_allowed_origins.ps1` с ID из onboarding.
+**Проверка:** `go test ./...`, node scripts, `.\install.ps1 -ExtensionId ID -Build`.
 
 ---
 

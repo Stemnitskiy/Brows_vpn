@@ -1,9 +1,9 @@
 ﻿{
-    "name":  "com.browsvpn.host",
-    "description":  "Brows VPN Native Messaging Host",
-    "path":  "D:\\Projects\\Brows_vpn\\proxy-service\\browsvpn-proxy.exe",
-    "type":  "stdio",
-    "allowed_origins":  [
-                            "chrome-extension://bhoekfimbmebglibjiabbhpichaipgjg/"
-                        ]
+  "name": "com.browsvpn.host",
+  "description": "Brows VPN Native Messaging Host",
+  "path": "REPLACE_WITH_ABSOLUTE_PATH_TO_proxy-service\\browsvpn-proxy.exe",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://REPLACE_WITH_EXTENSION_ID/"
+  ]
 }

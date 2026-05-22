@@ -1,7 +1,7 @@
 # Brows VPN — Proxy Service
 
 > **Статус:** ✅ Production path — Native Messaging host + Xray controller  
-> **Extension:** v2.2.0 · **SOCKS:** `127.0.0.1:10808`  
+> **Extension:** v2.2.1 · **SOCKS:** `127.0.0.1:10808`  
 > **Security:** [../docs/SECURITY.md](../docs/SECURITY.md)
 
 ---
@@ -15,11 +15,14 @@ Go binary `browsvpn-proxy.exe` — Chrome Native Messaging host. Принима�
 ## Build & Install
 
 ```powershell
-cd proxy-service
 go build -o browsvpn-proxy.exe ./cmd
-setup_registry.bat
-go build -o browsvpn-proxy.exe ./cmd
-powershell -File update_allowed_origins.ps1 -ExtensionId YOUR_CHROME_EXTENSION_ID
+.\install.ps1 -ExtensionId YOUR_CHROME_EXTENSION_ID
+```
+
+Или одной командой (сборка + установка):
+
+```powershell
+.\install.ps1 -ExtensionId YOUR_CHROME_EXTENSION_ID -Build
 ```
 
 Поместите `xray.exe` + `geoip.dat` + `geosite.dat` в `xray-core/`.

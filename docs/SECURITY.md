@@ -1,6 +1,6 @@
 # Brows VPN — Security
 
-> **Extension:** v2.2.0 · **Обновлено:** 2026-05-22
+> **Extension:** v2.2.1 · **Обновлено:** 2026-05-22
 
 Документ описывает модель угроз, реализованные меры (P0–P2) и рекомендации по эксплуатации. **v3 (tray, multi-protocol) в scope не входит.**
 
@@ -28,12 +28,13 @@
 | Single-instance native host (Windows mutex) | `internal/singleinstance` |
 | Xray config `0600`, wipe on disable | `xray/controller.go`, `handler.handleDisableVPN` |
 | Redacted diagnostics (без PAC/access.log) | `background.getDiagnostics`, `messaging/redact.go` |
+| NM origin deny-by-default (manifest load/parse/empty origins) | `origin.go`, `native-manifest.ps1` |
 
 ### P1 — hardening
 
 | Мера | Где |
 |------|-----|
-| NM security (Chrome standard) | `allowed_origins` + caller origin argv | `update_allowed_origins.ps1`, `origin.go` |
+| NM security (Chrome standard) | `allowed_origins` + fail-closed origin gate | `origin.go`, `install.ps1`, `native-manifest.ps1` |
 | Xray integrity (optional `.sha256` sidecar) | `xray/integrity.go` |
 | Удалён неиспользуемый `activeTab` | `manifest.json` |
 | Логи: debug-only для info/request; redact URLs | `DiagnosticLog` |
@@ -45,7 +46,7 @@
 
 | Мера | Где |
 |------|-----|
-| CI: `go test`, PAC/import scripts | `.github/workflows/test.yml` |
+| CI: `go test`, PAC/import/assets scripts | `.github/workflows/test.yml` |
 | `go.sum` в репозитории | `.gitignore` |
 | WebRTC `disable_non_proxied_udp` при VPN ON | `background.js` + `privacy` permission |
 | PAC для incognito (если разрешено) | `setProxy` / `clearProxy` |
@@ -59,10 +60,13 @@
 
 1. **Chrome** проверяет, что Extension ID есть в `allowed_origins` manifest host.
 2. **Go host** получает origin вызывающего расширения первым аргументом CLI (`chrome-extension://…/`) и сверяет с manifest.
-3. **Отдельный токен в настройках не нужен** — так делают большинство NM-расширений (KeePassXC, uBlock helpers и т.д.).
+3. **Deny-by-default:** если manifest не загружен, JSON битый или `allowed_origins` пуст — chrome caller отклоняется (`Access denied for extension origin`).
+4. **Manifest UTF-8 без BOM** — `native-manifest.ps1`, `install.ps1`.
+5. **Один установщик** — `install.ps1` (или `setup_registry.bat` как wrapper).
 
 ```powershell
-powershell -File update_allowed_origins.ps1 -ExtensionId YOUR_ID
+cd proxy-service
+.\install.ps1 -ExtensionId YOUR_ID -Build
 ```
 
 ID расширения автоматически показывается в **мастере настройки** (`chrome.runtime.id`).

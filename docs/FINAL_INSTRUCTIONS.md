@@ -1,6 +1,6 @@
 # Brows VPN — Инструкция по установке и запуску
 
-> **Статус:** ✅ Актуально для extension **v2.2.0**  
+> **Статус:** ✅ Актуально для extension **v2.2.1**  
 > **Безопасность (NM token):** [SECURITY.md](./SECURITY.md)  
 > **Краткий старт:** [QUICK_START.md](./QUICK_START.md)
 
@@ -35,15 +35,14 @@ go build -o browsvpn-proxy.exe ./cmd
 
 ## Шаг 3: Native Messaging Host
 
-> **После Этапа 1:** будет использоваться JSON manifest `com.browsvpn.host.json`, а не прямой путь к exe.
+```powershell
+cd D:\Projects\Brows_vpn\proxy-service
+.\install.ps1 -ExtensionId ВАШ_EXTENSION_ID -Build
+```
 
-1. Запустите `setup_registry.bat` от имени администратора
-2. Убедитесь, что в реестре:
-   ```
-   HKCU\Software\Google\Chrome\NativeMessagingHosts\com.browsvpn.host
-   ```
-   указывает на **JSON manifest** (не на exe напрямую)
-3. В manifest указан `allowed_origins` с ID вашего расширения
+Скрипт собирает (с `-Build`), проверяет `browsvpn-proxy.exe` и `xray.exe`, пишет `com.browsvpn.host.json` (UTF-8 без BOM) и регистрирует HKCU ключ.
+
+`setup_registry.bat` — тот же установщик (wrapper без аргументов спросит Extension ID).
 
 ---
 
@@ -51,7 +50,7 @@ go build -o browsvpn-proxy.exe ./cmd
 
 1. `chrome://extensions/` → Developer mode
 2. Load unpacked → `D:\Projects\Brows_vpn\extension`
-3. Скопируйте Extension ID → обновите `allowed_origins` в host manifest
+3. Если Extension ID изменился — снова `.\install.ps1 -ExtensionId НОВЫЙ_ID`
 
 ---
 

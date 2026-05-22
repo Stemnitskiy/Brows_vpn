@@ -1,3 +1,5 @@
+//go:build windows
+
 package tray
 
 import (
@@ -49,7 +51,6 @@ func (t *TrayManager) onReady() {
 	systray.SetTitle("Brows VPN")
 	systray.SetTooltip("Brows VPN - Disabled")
 
-	// Enable/Disable menu item
 	mEnable := systray.AddMenuItem("Enable VPN", "Enable VPN connection")
 	mDisable := systray.AddMenuItem("Disable VPN", "Disable VPN connection")
 	mDisable.Disable()
@@ -57,7 +58,6 @@ func (t *TrayManager) onReady() {
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("Quit", "Quit the application")
 
-	// Handle menu clicks
 	go func() {
 		for {
 			select {
@@ -95,8 +95,7 @@ func (t *TrayManager) onExit() {
 
 // UpdateStatus updates the tray status
 func (t *TrayManager) UpdateStatus(enabled bool) {
-	// This would need to be implemented with proper state management
-	// For now, the state is managed internally in the menu click handlers
+	// State is managed internally in the menu click handlers until v3 tray work lands.
 }
 
 // Quit quits the system tray

@@ -24,5 +24,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - run: node --check extension/background.js
+      - run: node --check extension/options.js
+      - run: node --check extension/popup.js
+      - run: node --check extension/diagnostics.js
+      - run: node --check extension/onboarding.js
+      - run: node --check extension/theme.js
+      - run: node --check extension/validators.js
+      - run: node scripts/generate-extension-icons.js
+      - run: node scripts/validate-extension-assets.js
       - run: node scripts/test-pac-whitelist.js
       - run: node scripts/test-settings-import-export.js

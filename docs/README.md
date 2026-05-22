@@ -1,6 +1,6 @@
 # Brows VPN — Browser Extension with VLESS Integration
 
-> **Статус:** v2 завершён (extension **v2.2.0**), hardening P0–P2 ✅  
+> **Статус:** v2 завершён (extension **v2.2.1**), hardening P0–P2 ✅  
 > **Актуальный прогресс:** [CURRENT_STATUS.md](./CURRENT_STATUS.md)  
 > **Безопасность:** [SECURITY.md](./SECURITY.md)  
 > **План (v3 отложен):** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)
@@ -23,7 +23,7 @@ Brows VPN — расширение Chromium (Windows) для выборочно�
 | Preflight, health, recovery (3× → disable) | ✅ |
 | Smart routing, context menu, onboarding | ✅ |
 | Dark theme, diagnostics page | ✅ |
-| Security hardening P0–P2 | ✅ v2.2.0 |
+| Security hardening P0–P2 | ✅ v2.2.1 |
 
 **Не в scope (v3):** system tray, multi-protocol, Firefox/Edge.
 
@@ -47,9 +47,7 @@ Browser Extension (MV3)  ←── Native Messaging ──→  Go Proxy Service
 
 ```powershell
 cd proxy-service
-go build -o browsvpn-proxy.exe ./cmd
-setup_registry.bat
-powershell -File update_allowed_origins.ps1 -ExtensionId YOUR_ID
+.\install.ps1 -ExtensionId YOUR_ID -Build
 ```
 
 Chrome → `chrome://extensions` → Load unpacked → `extension/` → Settings → VLESS → Enable VPN.
@@ -63,7 +61,7 @@ Chrome → `chrome://extensions` → Load unpacked → `extension/` → Settings
 ```
 Brows_vpn/
 ├── docs/                 # Документация (CURRENT_STATUS — source of truth)
-├── extension/            # ← Загружается в Chrome (manifest v2.2.0)
+├── extension/            # ← Загружается в Chrome (manifest v2.2.1)
 ├── proxy-service/        # Go native host + Xray
 └── scripts/              # PAC / import tests, integration
 ```

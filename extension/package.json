@@ -1,20 +1,23 @@
 {
   "name": "browsvpn",
-  "version": "1.0.0",
+  "version": "2.2.1",
   "description": "Browser extension with VLESS VPN integration for selective site proxying",
   "author": "Brows VPN",
   "license": "MIT",
   "main": "dist/index.js",
   "scripts": {
-    "build:dev": "NODE_ENV=development BROWSER=chrome webpack --progress --config webpack.config.js",
-    "build:prod": "NODE_ENV=production BROWSER=chrome webpack --progress --config webpack.config.js",
-    "watch:dev": "NODE_ENV=development BROWSER=chrome webpack --watch --progress --config webpack.config.js",
-    "watch:prod": "NODE_ENV=production BROWSER=chrome webpack --watch --progress --config webpack.config.js",
+    "build:dev": "cross-env NODE_ENV=development BROWSER=chrome webpack --progress --config webpack.config.js",
+    "build:prod": "cross-env NODE_ENV=production BROWSER=chrome webpack --progress --config webpack.config.js",
+    "watch:dev": "cross-env NODE_ENV=development BROWSER=chrome webpack --watch --progress --config webpack.config.js",
+    "watch:prod": "cross-env NODE_ENV=production BROWSER=chrome webpack --watch --progress --config webpack.config.js",
+    "build:dev:win": "powershell -NoProfile -ExecutionPolicy Bypass -File ..\\scripts\\build-webpack.ps1 -Mode dev",
+    "build:prod:win": "powershell -NoProfile -ExecutionPolicy Bypass -File ..\\scripts\\build-webpack.ps1 -Mode prod",
     "release": "web-ext build -o --source-dir=./dist/chrome/prod --artifacts-dir=./releases/chrome",
     "lint": "eslint --ext=.js ./src/",
-    "lint:root": "eslint --no-eslintrc --env es2021,browser,webextensions --ext=.js background.js validators.js options.js popup.js diagnostics.js onboarding.js theme.js",
+    "lint:root": "eslint --no-eslintrc --env browser,webextensions --ext=.js background.js validators.js options.js popup.js diagnostics.js onboarding.js theme.js",
     "stylelint": "stylelint ./src/",
-    "lint:fix": "eslint --fix --ext=.js ./src/"
+    "lint:fix": "eslint --fix --ext=.js ./src/",
+    "validate:assets": "node ../scripts/validate-extension-assets.js"
   },
   "dependencies": {
     "axios": "^1.7.9",
@@ -35,6 +38,7 @@
     "@typescript-eslint/eslint-plugin": "^5.22.0",
     "@typescript-eslint/parser": "^5.22.0",
     "babel-eslint": "^10.1.0",
+    "cross-env": "^7.0.3",
     "babel-loader": "^8.2.5",
     "copy-webpack-plugin": "^10.2.4",
     "css-loader": "^6.6.0",

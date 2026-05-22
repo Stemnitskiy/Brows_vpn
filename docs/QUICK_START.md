@@ -1,7 +1,7 @@
 # Brows VPN — Quick Start (для разработчика)
 
 > **Обновлено:** 2026-05-22  
-> **Статус:** v2.2.0 — рабочий MVP + hardening  
+> **Статус:** v2.2.1 — рабочий MVP + hardening  
 > **План:** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) · [SECURITY.md](./SECURITY.md)
 
 ---
@@ -73,16 +73,14 @@ go build -o browsvpn-proxy.exe ./cmd
 
 ---
 
-## Native Messaging (текущее состояние)
+## Native Messaging
 
-> **⚠️ Не работает out-of-the-box.** Требуется Этап 1 из [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md).
+```powershell
+cd proxy-service
+.\install.ps1 -ExtensionId YOUR_ID -Build
+```
 
-Известные проблемы:
-- `host.go` — неверный протокол (нужен length-prefixed)
-- `setup_registry.bat` — неверный формат registry entry
-- `main.go` — требует `--native-messaging`, Chrome args не передаёт
-
-После исправления: registry → JSON manifest → `com.browsvpn.host.json`.
+Один скрипт: сборка (опционально), manifest UTF-8 без BOM, registry HKCU.
 
 ---
 
