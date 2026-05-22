@@ -1,5 +1,9 @@
 # Brows VPN - Technical Architecture
 
+> **Обновлено:** 2026-05-22  
+> Описывает **целевую** архитектуру. Разделы «Security», «Monitoring», «Deployment» — частично или полностью не реализованы.  
+> **Фактическое состояние:** [CURRENT_STATUS.md](./CURRENT_STATUS.md)
+
 ## System Architecture
 
 ### High-Level Overview

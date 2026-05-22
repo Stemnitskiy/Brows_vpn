@@ -1,197 +1,137 @@
-# 🎯 Финальные инструкции для запуска Brows VPN
+# Brows VPN — Инструкция по установке и запуску
 
-## ✅ Что уже сделано (программная часть):
-
-- ✅ Полностью разработано Chrome extension (Manifest V3)
-- ✅ Полностью разработан Go proxy service с Xray-core интеграцией  
-- ✅ Реализован native messaging протокол
-- ✅ Создана система VLESS конфигурации
-- ✅ Реализована генерация PAC скриптов для маршрутизации
-- ✅ Добавлен system tray для Windows
-- ✅ Создана система логирования
-- ✅ Все компоненты проинтегрированы
-
-## 🔧 Требуется сделать вручную (3 шага):
-
-### Шаг 1: Установка Go (5 минут)
-
-**Скачивание:**
-1. Перейдите на https://golang.org/dl/
-2. Скачайте: `go1.21.6.windows-amd64.msi` (или более новую версию)
-3. Запустите установщик и следуйте инструкциям
-
-**Проверка:**
-Откройте новую командную строку и выполните:
-```bash
-go version
-```
-*Ожидаемый результат: `go version go1.21.x windows/amd64`*
+> **Статус:** ⚠️ **Черновик — применять после завершения MVP (Этапы 1–2)**  
+> **План:** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)  
+> **Текущие блокеры:** Native Messaging и запуск Xray не работают — см. [CURRENT_STATUS.md](./CURRENT_STATUS.md)
 
 ---
 
-### Шаг 2: Скачивание Xray-core (2 минуты)
+## Когда использовать этот документ
 
-**Скачивание:**
-1. Перейдите на https://github.com/XTLS/Xray-core/releases
-2. Скачайте: `Xray-windows-64.zip` (последняя версия)
-3. Распакуйте архив
-4. Скопируйте файл `xray.exe` в папку: `D:/Projects/Brows_vpn/proxy-service/xray-core/`
-
-**Проверка:**
-Проверьте, что файл существует: `D:/Projects/Brows_vpn/proxy-service/xray-core/xray.exe`
+Эта инструкция станет актуальной после выполнения **Этапа 1–2** плана реализации. До этого следуйте [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) для разработки.
 
 ---
 
-### Шаг 3: Сборка и настройка (5 минут)
+## Предварительные требования
 
-**Сборка Go приложения:**
-```bash
-cd D:/Projects/Brows_vpn/proxy-service
+- Windows 11
+- Chromium-браузер (Chrome, Edge, Brave)
+- Go 1.21+ (только для сборки)
+- VLESS-сервер (Reality + gRPC)
+- Права на запись в реестр HKCU (для native messaging)
+
+---
+
+## Шаг 1: Xray-core
+
+1. Скачайте [Xray-windows-64.zip](https://github.com/XTLS/Xray-core/releases)
+2. Распакуйте `xray.exe` в:
+   ```
+   D:\Projects\Brows_vpn\proxy-service\xray-core\xray.exe
+   ```
+
+---
+
+## Шаг 2: Сборка Go-сервиса
+
+```powershell
+cd D:\Projects\Brows_vpn\proxy-service
 go build -o browsvpn-proxy.exe ./cmd
 ```
 
-**Настройка Native Messaging:**
-1. Откройте папку `D:/Projects/Brows_vpn/proxy-service/`
-2. Правой кнопкой мыши на `setup_registry.bat`
-3. Выберите "Запуск от имени администратора"
-4. Подтвердите добавление в реестр
-
 ---
 
-## 🚀 Запуск и тестирование
+## Шаг 3: Native Messaging Host
 
-### 1. Запуск Go Service (Фоновый режим)
+> **После Этапа 1:** будет использоваться JSON manifest `com.browsvpn.host.json`, а не прямой путь к exe.
 
-Откройте командную строку и выполните:
-```bash
-cd D:/Projects/Brows_vpn/proxy-service
-browsvpn-proxy.exe --native-messaging
-```
-
-*Оставьте это окно открытым - это native messaging хост*
-
----
-
-### 2. Загрузка Extension в Chrome
-
-1. Откройте Chrome и перейдите на `chrome://extensions/`
-2. Включите "Режим разработчика" (в правом верхнем углу)
-3. Нажмите кнопку "Загрузить распакованное расширение"
-4. Выберите папку: `D:/Projects/Brows_vpn\extension`
-5. Расширение появится в списке
-
----
-
-### 3. Настройка VLESS конфигурации
-
-1. Нажмите на иконку расширения в панели Chrome
-2. Нажмите кнопку "Settings"
-3. В поле "VLESS Configuration URL" вставьте вашу конфигурацию:
+1. Запустите `setup_registry.bat` от имени администратора
+2. Убедитесь, что в реестре:
    ```
-   vless://63197442-76bb-4ab0-b99f-bcb682d8c2ac@103.228.168.248:34286?type=grpc&encryption=none&serviceName=vpn&security=reality&pbk=EIg-mGPQDao0xcoptrd7Gix2viSn9MYS85hPQUfW2Qs&fp=chrome&sni=yahoo.com&sid=3130&spx=%2F#WORK%20PC
+   HKCU\Software\Google\Chrome\NativeMessagingHosts\com.browsvpn.host
    ```
-4. Нажмите "Save Configuration"
-5. Добавьте домены в "Domain Management" (например: `google.com`, `youtube.com`)
-6. Нажмите "Save Domain List"
-7. Выберите режим "Selective Mode"
-8. Нажмите "Save Mode"
+   указывает на **JSON manifest** (не на exe напрямую)
+3. В manifest указан `allowed_origins` с ID вашего расширения
 
 ---
 
-### 4. Активация VPN
+## Шаг 4: Загрузка расширения
 
-1. Закройте настройки и вернитесь к popup
-2. Нажмите кнопку "Enable VPN"
-3. Статус должен измениться на "VPN Enabled"
-4. Попробуйте посетить сайт из вашего белого списка
-5. Проверьте, что он работает через VPN
+1. `chrome://extensions/` → Developer mode
+2. Load unpacked → `D:\Projects\Brows_vpn\extension`
+3. Скопируйте Extension ID → обновите `allowed_origins` в host manifest
 
 ---
 
-## 🐛 Устранение неполадок
+## Шаг 5: Настройка
 
-### "Native messaging host not found"
-
-**Решение:**
-1. Убедитесь, что `setup_registry.bat` был запущен от имени администратора
-2. Проверьте путь в реестре: `regedit` → `HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\com.browsvpn.host`
-3. Убедитесь, что путь к `browsvpn-proxy.exe` верный
-4. Перезапустите Chrome
-
-### "Failed to connect to native messaging host"
-
-**Решение:**
-1. Убедитесь, что `browsvpn-proxy.exe --native-messaging` запущен
-2. Проверьте логи в командной строке Go приложения
-3. Убедитесь, что расширение загружено правильно
-
-### "VLESS configuration invalid"
-
-**Решение:**
-1. Проверьте формат VLESS URL
-2. Убедитесь, что все необходимые параметры присутствуют
-3. Используйте кнопку "Validate" для проверки
-
-### Go compilation errors
-
-**Решение:**
-1. Убедитесь, что Go установлен правильно: `go version`
-2. Убедитесь, что вы в правильной папке: `D:/Projects/Brows_vpn/proxy-service`
-3. Попробуйте: `go mod tidy` перед сборкой
+1. Иконка расширения → Settings
+2. VLESS Configuration URL — вставьте ваш `vless://...`
+3. Save Configuration
+4. Domain Management — добавьте домены для selective mode
+5. Operation Mode — Selective / Global
 
 ---
 
-## 📊 Структура процесса
+## Шаг 6: Использование
 
+1. Popup → **Enable VPN**
+2. Chrome автоматически запустит native host (Go exe)
+3. Xray поднимет SOCKS5 на `127.0.0.1:1080`
+4. Проверьте сайт из whitelist
+
+> **Не нужно** вручную запускать `browsvpn-proxy.exe --native-messaging` — Chrome запускает host сам (после исправления entry point).
+
+---
+
+## Disable
+
+Popup → **Disable VPN** → proxy сброшен, Xray остановлен.
+
+---
+
+## Troubleshooting
+
+### Native messaging host not found
+
+- Проверьте registry path → JSON manifest
+- Проверьте `path` в manifest → существующий exe
+- Перезапустите Chrome
+
+### Failed to connect
+
+- Проверьте `allowed_origins` matches extension ID
+- Логи: Chrome DevTools → extension service worker
+- Go logs: `proxy-service/logs/app.log`
+
+### Xray не стартует
+
+- `xray.exe` на месте?
+- VLESS URL валиден?
+- stderr Xray в логах
+
+### Proxy error / no connection
+
+- `netstat -an | findstr 1080` — порт слушает?
+- Firewall блокирует localhost?
+
+---
+
+## Удаление
+
+```powershell
+# Registry
+proxy-service\uninstall_registry.bat
+
+# Extension
+chrome://extensions/ → Remove
 ```
-Chrome Extension ←→ Native Messaging ←→ Go Proxy Service ←→ Xray-core ←→ VPN Server
-     ↓                          ↓                      ↓                 ↓
-  PAC Script            JSON Protocol        SOCKS5 Proxy    VLESS Protocol
-  Generation           Communication         (127.0.0.1:1080)   with Reality
-```
 
 ---
 
-## 🎯 Ожидаемый результат
+## Связанные документы
 
-После выполнения всех шагов:
-
-1. ✅ Extension загружен в Chrome
-2. ✅ Go service работает в фоне
-3. ✅ Native messaging настроен через реестр
-4. ✅ VLESS конфигурация сохранена
-5. ✅ VPN включается через popup
-6. ✅ Сайты из белого списка идут через VPN
-7. ✅ Остальные сайты идут напрямую
-8. ✅ System tray показывает статус подключения
-
----
-
-## 📝 Дополнительная информация
-
-### Файлы логов:
-
-- **Extension**: Chrome DevTools → Console
-- **Go Service**: `D:/Projects/Brows_vpn/proxy-service/logs/app.log`
-
-### Деинсталляция:
-
-1. Удалите расширение из Chrome
-2. Закройте `browsvpn-proxy.exe`
-3. Запустите `uninstall_registry.bat` от имени администратора
-
-### Обновление:
-
-Для обновления extension:
-1. Измените версию в `manifest.json`
-2. Перезагрузите расширение в Chrome
-
-Для обновления Go service:
-1. Пересоберите: `go build -o browsvpn-proxy.exe ./cmd`
-2. Перезапустите приложение
-
----
-
-## 🎉 Готово к тестированию!
-
-После выполнения 3 шагов настройки у вас будет полностью функциональный Brows VPN с VLESS Reality поддержкой.
+- [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)
+- [CURRENT_STATUS.md](./CURRENT_STATUS.md)
+- [API.md](./API.md)
+- [proxy-service/NATIVE_MESSAGING_SETUP.md](../proxy-service/NATIVE_MESSAGING_SETUP.md)

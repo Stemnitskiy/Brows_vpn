@@ -1,167 +1,162 @@
-# Brows VPN - Browser Extension with VLESS Integration
+# Brows VPN — Browser Extension with VLESS Integration
+
+> **Статус:** ~40% MVP — интеграция Extension ↔ Go ↔ Xray **не завершена**  
+> **План работ:** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)  
+> **Текущее состояние:** [CURRENT_STATUS.md](./CURRENT_STATUS.md)
+
+---
 
 ## Overview
 
-Brows VPN - это браузерное расширение для Chromium-based браузеров на Windows 11, которое позволяет проксировать отдельные сайты через VPN канал с использованием протокола VLESS с Reality security.
+Brows VPN — браузерное расширение для Chromium на Windows 11 с выборочным проксированием сайтов через VLESS (Reality + gRPC). Локальный Go-сервис управляет Xray-core; расширение маршрутизирует трафик через PAC-скрипты.
 
-## Key Features
+**Назначение:** личное использование на Windows 11.
 
-- **Selective Site Proxying**: Возможность выбирать конкретные сайты для проксирования через VPN
-- **Global VPN Mode**: Опция направления всего трафика через VPN
-- **White/Black List Management**: Управление списками доменов
-- **VLESS Reality Support**: Полная поддержка VLESS с Reality security и gRPC транспортом
-- **Auto-reconnect**: Автоматическое переподключение при потерях связи
-- **Logging System**: Детальное логирование подключений и ошибок
-- **Import/Export**: Импорт и экспорт конфигураций и списков доменов
-- **System Tray Integration**: Визуальное управление через иконку в трее
-- **Browser Extension UI**: Удобный интерфейс расширения в браузере
+---
+
+## Key Features (целевые)
+
+| Функция | Статус |
+|---------|--------|
+| Selective site proxying (whitelist) | 🟡 PAC есть, E2E не проверен |
+| Global VPN mode | 🟡 PAC есть |
+| VLESS Reality + gRPC | 🔴 Parser есть, Xray не запускается |
+| Native Messaging (extension ↔ Go) | 🔴 Протокол/registry неверны |
+| System tray | 🔴 Код есть, отключён |
+| Auto-reconnect | 🟡 Только в extension (proxy error) |
+| Import/Export | 🔴 Не реализовано |
+| Logging | 🟡 Go logger есть, UI viewer нет |
+
+---
 
 ## Architecture
 
-### Components
-
-1. **Browser Extension** (Chromium Extension)
-   - Manifest V3
-   - Popup interface with enable/disable functionality
-   - Settings page with mode selection
-   - Domain list management
-   - Chrome Proxy API integration
-
-2. **Local Proxy Service** (Windows Application)
-   - VLESS client implementation (based on Xray-core)
-   - Local SOCKS5 proxy server
-   - System tray icon with controls
-   - Native messaging integration with browser extension
-   - Configuration management
-   - Logging system
-
-### Data Flow
-
 ```
-User Request → Browser → Extension (PAC Script) → Local SOCKS5 Proxy → VLESS Client → VPN Server
+Browser Extension (MV3)  ←── Native Messaging ──→  Go Proxy Service
+        │                                              │
+   chrome.proxy (PAC)                            Xray-core (VLESS)
+        │                                              │
+   SOCKS5 127.0.0.1:1080  ←──────────────────────────┘
+        │
+   VPN Server (Reality)
 ```
 
-## Technology Stack
+Подробнее: [ARCHITECTURE.md](./ARCHITECTURE.md)
 
-### Browser Extension
-- **Manifest V3** (Chrome Extension API)
-- **TypeScript/JavaScript** (ES6+)
-- **React** (UI components)
-- **Chrome APIs**:
-  - `chrome.proxy` (PAC script management)
-  - `chrome.storage` (configuration persistence)
-  - `chrome.runtime` (native messaging)
-  - `chrome.tabs` (tab management)
+---
+
+## Technology Stack (фактический)
+
+### Browser Extension (активный код в корне `extension/`)
+
+- JavaScript (ES6+), **без React** в текущей сборке
+- Manifest V3
+- Chrome APIs: `proxy`, `storage`, `runtime` (nativeMessaging)
 
 ### Local Proxy Service
-- **Xray-core** (VLESS implementation)
-- **Go** (wrapper application)
-- **Native Messaging Protocol** (communication with extension)
-- **Windows System Tray API** (GUI integration)
 
-## VLESS Configuration Support
+- Go 1.21+
+- Xray-core (внешний процесс, binary не в repo)
+- getlantern/systray, logrus, lumberjack
 
-Проект поддерживает VLESS конфигурации в формате URL:
+### Reference (не используется в сборке)
+
+- Censor Tracker codebase в `extension/src/` (webpack, React presets)
+
+---
+
+## Project Structure
+
 ```
-vless://uuid@address:port?type=grpc&encryption=none&serviceName=vpn&security=reality&pbk=publicKey&fp=chrome&sni=serverName&sid=sessionId&spx=%2F#name
+Brows_vpn/
+├── docs/
+│   ├── IMPLEMENTATION_ROADMAP.md   ← основной план
+│   ├── CURRENT_STATUS.md
+│   ├── ROADMAP.md
+│   ├── ARCHITECTURE.md
+│   ├── API.md
+│   └── ...
+├── extension/                      ← загружается в Chrome
+│   ├── manifest.json
+│   ├── background.js
+│   ├── popup.html / popup.js
+│   ├── options.html / options.js
+│   └── src/                        ← Censor Tracker (reference)
+├── proxy-service/
+│   ├── cmd/main.go
+│   ├── internal/
+│   ├── pkg/vless/
+│   └── xray-core/                  ← xray.exe — скачать вручную
+└── scripts/                        ← (планируется)
 ```
 
-### Supported Parameters
-- `type`: grpc, tcp, ws
-- `encryption`: none (recommended for Reality)
-- `security`: reality, tls
-- `serviceName`: gRPC service name
-- `authority`: HTTP authority header
-- `pbk`: Reality public key
-- `fp`: TLS fingerprint (chrome, firefox, safari, etc.)
-- `sni`: Server Name Indication
-- `sid`: Reality short ID
-- `spx`: Reality SPI X (additional parameter)
+---
+
+## VLESS Configuration
+
+Формат URL:
+
+```
+vless://uuid@address:port?type=grpc&encryption=none&serviceName=vpn&security=reality&pbk=...&fp=chrome&sni=...&sid=...&spx=%2F#name
+```
+
+Конфигурация хранится локально в `chrome.storage` (шифрование — в планах, этап 5).
+
+---
 
 ## Modes of Operation
 
-### 1. Selective Mode (Default)
-- Только сайты из белого списка идут через VPN
-- Все остальные сайты идут напрямую
-- PAC скрипт маршрутизирует на основе доменов
+| Mode | Поведение |
+|------|-----------|
+| **Selective** | Whitelist → SOCKS5; остальное → DIRECT |
+| **Global** | Весь трафик → SOCKS5 |
+| **Disabled** | DIRECT, Xray stopped |
 
-### 2. Global Mode
-- Весь трафик направляется через VPN
-- Белый список игнорируется
-- Полное проксирование всех соединений
+---
 
-### 3. Disabled Mode
-- VPN отключен
-- Весь трафик идет напрямую
-- Локальный прокси может быть остановлен
+## Development
+
+### Prerequisites
+
+- Windows 11
+- Go 1.21+
+- Chromium browser
+- Xray-core binary → `proxy-service/xray-core/xray.exe`
+
+### Quick commands
+
+```powershell
+# Build proxy service
+cd proxy-service
+go build -o browsvpn-proxy.exe ./cmd
+
+# Load extension
+# chrome://extensions → Developer mode → Load unpacked → extension/
+```
+
+Полнее: [QUICK_START.md](./QUICK_START.md)
+
+---
 
 ## Open Source Foundation
 
-Проект основан на [Censor Tracker](https://github.com/censortracker) open-source проектах:
-- **censortracker/censortracker** - Browser extension UI and functionality
-- **censortracker/proxy** - Lightweight proxy client with Xray integration
+Основан на [Censor Tracker](https://github.com/censortracker) (MIT). Proxy-сервис переписан с C++/Qt на Go.
 
-### Modifications from Original
-- Enhanced VLESS Reality support
-- Improved white/black list management
-- System tray integration for Windows
-- Enhanced logging system
-- Auto-reconnect functionality
-- Import/Export capabilities
-- Global VPN mode
+---
 
-## Installation & Usage
+## Documentation Index
 
-### Prerequisites
-- Windows 11
-- Chromium-based browser (Chrome, Edge, Brave, etc.)
-- VLESS server configuration
-- Administrative privileges (for system tray app)
+| Document | Purpose |
+|----------|---------|
+| [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) | План реализации по этапам |
+| [CURRENT_STATUS.md](./CURRENT_STATUS.md) | Актуальный статус кода |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | Техническая архитектура |
+| [API.md](./API.md) | Native messaging protocol |
+| [QUICK_START.md](./QUICK_START.md) | Быстрый старт для разработчика |
+| [FINAL_INSTRUCTIONS.md](./FINAL_INSTRUCTIONS.md) | Инструкция пользователя (после MVP) |
 
-### Installation Process
-1. Install Browser Extension
-2. Install Local Proxy Service
-3. Configure VLESS connection
-4. Set up domain lists
-5. Enable extension
-
-### Configuration
-1. Import VLESS configuration URL
-2. Select operation mode (Selective/Global)
-3. Add domains to white list (for Selective mode)
-4. Enable VPN connection
-5. Monitor connection status
-
-## Development Status
-
-**Current Phase**: Planning and Architecture Design
-
-**Next Steps**:
-- Set up development environment
-- Fork and modify Censor Tracker extension
-- Develop local proxy service
-- Integrate components
-- Testing and optimization
+---
 
 ## License
 
-This is a personal project for private use only. Based on open-source Censor Tracker project (MIT License).
-
-## Security Considerations
-
-- VLESS configurations stored locally encrypted
-- No data sent to external services (except VPN server)
-- Native messaging secured by browser
-- Local SOCKS5 proxy bound to localhost only
-- Regular security updates for Xray-core
-
-## Future Enhancements
-
-- [ ] Multi-server support with load balancing
-- [ ] Connection speed monitoring
-- [ ] Traffic statistics and usage reports
-- [ ] Advanced routing rules
-- [ ] DNS over VPN support
-- [ ] Split tunneling by application
-- [ ] IPv6 support
-- [ ] WebRTC leak protection
+Персональный проект. Основан на Censor Tracker (MIT License).

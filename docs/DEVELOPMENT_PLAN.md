@@ -1,5 +1,13 @@
 # Brows VPN - Development Plan
 
+> **⚠️ Исторический документ.** Создан на этапе планирования (Phase 0).  
+> **Актуальный план:** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)  
+> **Статус:** [CURRENT_STATUS.md](./CURRENT_STATUS.md)
+
+---
+
+# Brows VPN - Development Plan (original)
+
 ## Immediate Next Steps
 
 ### Phase 0: Environment Setup (Days 1-2)

@@ -2,146 +2,100 @@
 
 Go-based proxy service with Xray-core integration for Brows VPN extension.
 
+> **Статус:** ~30% — каркас готов, native messaging и Xray integration не завершены.  
+> **План:** [docs/IMPLEMENTATION_ROADMAP.md](../docs/IMPLEMENTATION_ROADMAP.md)
+
 ## Features
 
-- **VLESS Protocol Support**: Full support for VLESS with Reality security
-- **Xray-core Integration**: Manages Xray-core as external process
-- **Native Messaging**: Chrome native messaging protocol for extension communication
-- **System Tray**: Windows system tray integration for easy control
-- **Configuration Management**: Dynamic configuration generation and hot-reload
-- **Logging**: Structured logging with log rotation
+| Feature | Status |
+|---------|--------|
+| VLESS URL parser | ✅ |
+| Xray process controller | ✅ |
+| Native messaging host | 🔴 Protocol/registry incorrect |
+| System tray | 🔴 Disabled in main.go |
+| Structured logging | ✅ |
 
 ## Requirements
 
-- Go 1.21 or higher
-- Windows 11 (for system tray integration)
-- Xray-core binary
+- Go 1.21+
+- Windows 11
+- Xray-core binary (not in repo)
 
 ## Installation
 
-### 1. Install Go
+### 1. Download Xray-core
 
-Download and install Go from https://golang.org/dl/
+From https://github.com/XTLS/Xray-core/releases — place binary at:
 
-### 2. Download Xray-core
-
-Download Xray-core binary from https://github.com/XTLS/Xray-core/releases
-
-Place the binary in the `xray-core/` directory:
 ```
 proxy-service/xray-core/xray.exe
 ```
 
-### 3. Build the Service
+### 2. Build
 
-```bash
+```powershell
 cd proxy-service
 go mod tidy
 go build -o browsvpn-proxy.exe ./cmd
 ```
 
-### 4. Configure Native Messaging
+### 3. Native Messaging Host
 
-Create Chrome native messaging host configuration:
+> **⚠️ Pending fix (Roadmap Stage 1):** requires JSON manifest + corrected protocol.
 
-**Windows Registry**:
-```
-HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\com.browsvpn.host
-```
+Planned setup:
+1. `com.browsvpn.host.json` — host manifest with `path`, `allowed_origins`
+2. Registry key points to **manifest JSON**, not exe directly
+3. Chrome launches exe without args → native messaging mode by default
 
-Value: `C:\path\to\browsvpn-proxy.exe --native-messaging`
+See [NATIVE_MESSAGING_SETUP.md](./NATIVE_MESSAGING_SETUP.md) and [docs/FINAL_INSTRUCTIONS.md](../docs/FINAL_INSTRUCTIONS.md).
 
 ## Usage
 
-### Standalone Mode (with System Tray)
+### Standalone Mode (planned)
 
-```bash
-browsvpn-proxy.exe
-```
+System tray mode — **currently disabled** in `cmd/main.go`.
 
-This will start the application with system tray icon.
+### Native Messaging Mode
 
-### Native Messaging Mode (for Chrome Extension)
+Chrome extension launches the host automatically when user enables VPN. Manual `--native-messaging` flag is a **temporary workaround** and will be removed.
 
-```bash
-browsvpn-proxy.exe --native-messaging
-```
-
-This mode is used by Chrome extension via native messaging protocol.
-
-## Development
-
-### Project Structure
+## Project Structure
 
 ```
 proxy-service/
-├── cmd/                 # Application entry points
-│   └── main.go         # Main application
-├── internal/           # Internal packages
-│   ├── api/           # HTTP API (optional)
-│   ├── xray/          # Xray-core management
-│   ├── config/        # Configuration management
-│   ├── tray/          # System tray integration
-│   ├── logging/       # Logging system
-│   └── messaging/     # Native messaging protocol
-├── pkg/              # Public packages
-│   ├── vless/        # VLESS protocol utilities
-│   └── utils/        # Utility functions
-├── xray-core/       # Xray-core binary
-├── configs/         # Configuration files
-├── logs/            # Log files
-└── go.mod          # Go module definition
-```
-
-### Building
-
-```bash
-# Build for Windows
-GOOS=windows GOARCH=amd64 go build -o browsvpn-proxy.exe ./cmd
-
-# Build with debug symbols
-go build -gcflags="all=-N -l" -o browsvpn-proxy-debug.exe ./cmd
-```
-
-### Testing
-
-```bash
-# Run tests
-go test ./...
-
-# Run with coverage
-go test -cover ./...
+├── cmd/main.go              # Entry point
+├── internal/
+│   ├── messaging/host.go    # Native messaging (needs fix)
+│   ├── xray/controller.go   # Xray process management
+│   ├── tray/tray.go         # System tray (not wired)
+│   └── logging/logger.go
+├── pkg/vless/parser.go      # VLESS parser + ToXrayConfig
+├── xray-core/               # xray.exe + geo data
+├── setup_registry.bat       # Needs update for JSON manifest
+└── go.mod
 ```
 
 ## Configuration
 
-The service expects VLESS configuration URLs in the format:
+VLESS URL format:
+
 ```
-vless://uuid@address:port?type=grpc&encryption=none&serviceName=vpn&security=reality&pbk=publicKey&fp=chrome&sni=serverName&sid=sessionId&spx=%2F#name
+vless://uuid@host:port?type=grpc&encryption=none&serviceName=vpn&security=reality&pbk=...&fp=chrome&sni=...&sid=...&spx=%2F#name
 ```
 
 ## Logs
 
-Logs are stored in the `logs/` directory with automatic rotation:
-- Maximum size: 100 MB per file
-- Maximum backups: 3 files
-- Maximum age: 28 days
-- Compression: enabled
+`logs/app.log` — rotation via lumberjack (100MB, 3 backups, 28 days).
 
 ## Troubleshooting
 
-### Go command not found
-Make sure Go is installed and added to your PATH:
-```bash
-go version
-```
-
-### Xray-core not found
-Ensure Xray-core binary is in the `xray-core/` directory.
-
-### Native messaging not working
-Check Chrome native messaging configuration in Windows Registry.
+| Issue | Check |
+|-------|-------|
+| Go not found | `go version` |
+| Xray not found | `xray-core/xray.exe` exists |
+| Native messaging fails | See [CURRENT_STATUS.md](../docs/CURRENT_STATUS.md) blockers |
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT

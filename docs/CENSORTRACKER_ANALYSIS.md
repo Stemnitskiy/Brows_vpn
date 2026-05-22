@@ -1,5 +1,7 @@
 # Censor Tracker - Analysis and Modification Strategy
 
+> **Справочный документ** (Phase 1). Актуальный план: [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)
+
 ## Overview
 
 Этот документ анализирует open-source проект Censor Tracker как основу для Brows VPN проекта.

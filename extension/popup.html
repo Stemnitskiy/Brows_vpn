@@ -1,97 +1,248 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Brows VPN</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      width: 300px;
-      padding: 15px;
-      font-family: Arial, sans-serif;
+      width: 320px;
       margin: 0;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      background: #F8FAFC;
+      color: #1E293B;
+      -webkit-font-smoothing: antialiased;
     }
-    
-    .header {
-      text-align: center;
-      margin-bottom: 15px;
+
+    .popup {
+      padding: 16px 18px 14px;
     }
-    
-    .header h1 {
-      margin: 0;
-      font-size: 18px;
-      color: #333;
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
     }
-    
-    .status {
-      padding: 10px;
-      margin-bottom: 15px;
-      border-radius: 5px;
-      text-align: center;
+
+    .brand {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #0F172A;
     }
-    
-    .status.disabled {
-      background-color: #ffebee;
-      color: #c62828;
-    }
-    
-    .status.enabled {
-      background-color: #e8f5e9;
-      color: #2e7d32;
-    }
-    
-    .button {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 10px;
+
+    .settings-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      padding: 0;
       border: none;
-      border-radius: 5px;
+      border-radius: 10px;
+      background: transparent;
+      color: #64748B;
       cursor: pointer;
-      font-size: 14px;
+      transition: background 0.15s, color 0.15s;
     }
-    
-    .button.primary {
-      background-color: #4285f4;
-      color: white;
+
+    .settings-btn:hover {
+      background: #E2E8F0;
+      color: #2563EB;
     }
-    
-    .button.primary:hover {
-      background-color: #3367d6;
+
+    .settings-btn svg {
+      width: 20px;
+      height: 20px;
     }
-    
-    .button.secondary {
-      background-color: #f1f1f1;
-      color: #333;
+
+    .toggle-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 0 4px;
     }
-    
-    .button.secondary:hover {
-      background-color: #e0e0e0;
+
+    .power-toggle {
+      position: relative;
+      width: 112px;
+      height: 112px;
+      padding: 0;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      outline: none;
     }
-    
-    .footer {
-      text-align: center;
-      margin-top: 15px;
+
+    .power-toggle:focus-visible .toggle-track {
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
+    }
+
+    .power-toggle:disabled {
+      cursor: wait;
+    }
+
+    .toggle-glow {
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      opacity: 0;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.45) 0%, rgba(16, 185, 129, 0) 70%);
+      transition: opacity 0.4s ease;
+      pointer-events: none;
+    }
+
+    .power-toggle.on .toggle-glow {
+      opacity: 1;
+      animation: glow-pulse 2.4s ease-in-out infinite;
+    }
+
+    @keyframes glow-pulse {
+      0%, 100% { transform: scale(1); opacity: 0.85; }
+      50% { transform: scale(1.06); opacity: 1; }
+    }
+
+    .toggle-track {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 112px;
+      height: 112px;
+      border-radius: 50%;
+      border: 4px solid #94A3B8;
+      background: #FFFFFF;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+      transition: border-color 0.35s ease, background 0.35s ease, box-shadow 0.35s ease;
+    }
+
+    .power-toggle.on .toggle-track {
+      border-color: #10B981;
+      background: linear-gradient(145deg, #ECFDF5 0%, #FFFFFF 60%);
+      box-shadow: 0 4px 20px rgba(16, 185, 129, 0.22);
+    }
+
+    .toggle-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.2s, transform 0.35s ease;
+    }
+
+    .toggle-icon svg {
+      width: 36px;
+      height: 36px;
+      stroke: #94A3B8;
+      transition: stroke 0.35s ease;
+    }
+
+    .power-toggle.on .toggle-icon svg {
+      stroke: #10B981;
+    }
+
+    .toggle-spinner {
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 3px solid #E2E8F0;
+      border-top-color: #2563EB;
+      opacity: 0;
+      transform: scale(0.92);
+      transition: opacity 0.2s;
+      pointer-events: none;
+    }
+
+    .power-toggle.loading .toggle-spinner {
+      opacity: 1;
+      animation: spin 0.75s linear infinite;
+    }
+
+    .power-toggle.loading .toggle-icon {
+      opacity: 0.35;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .status-label {
+      margin: 18px 0 4px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #334155;
+      transition: color 0.3s;
+    }
+
+    .toggle-section:has(.power-toggle.on) .status-label {
+      color: #059669;
+    }
+
+    .mode-hint {
+      margin: 0;
       font-size: 12px;
-      color: #666;
+      color: #64748B;
+      min-height: 18px;
+    }
+
+    .error-box {
+      display: none;
+      margin-top: 14px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      color: #B91C1C;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .footer {
+      margin-top: 16px;
+      text-align: center;
+      font-size: 11px;
+      color: #94A3B8;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>Brows VPN</h1>
+  <div class="popup">
+    <header class="top-bar">
+      <span class="brand">Brows VPN</span>
+      <button type="button" class="settings-btn" id="settingsBtn" title="Настройки" aria-label="Настройки">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82-.33 1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="toggle-section">
+      <button type="button" class="power-toggle off" id="powerToggle" aria-pressed="false" aria-label="Включить VPN">
+        <span class="toggle-glow" aria-hidden="true"></span>
+        <span class="toggle-track">
+          <span class="toggle-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round">
+              <path d="M12 2v10"/>
+              <path d="M8.5 5.5a6 6 0 1 0 7 0"/>
+            </svg>
+          </span>
+          <span class="toggle-spinner" aria-hidden="true"></span>
+        </span>
+      </button>
+      <p class="status-label" id="statusText">VPN выключен</p>
+      <p class="mode-hint" id="modeHint"></p>
+    </div>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <footer class="footer">Brows VPN v1.0.0</footer>
   </div>
-  
-  <div class="status disabled" id="status">
-    <span id="statusText">VPN Disabled</span>
-  </div>
-  
-  <button class="button primary" id="enableBtn">Enable VPN</button>
-  <button class="button secondary" id="settingsBtn">Settings</button>
-  
-  <div class="footer">
-    Brows VPN v1.0.0
-  </div>
-  
+
   <script src="popup.js"></script>
 </body>
 </html>

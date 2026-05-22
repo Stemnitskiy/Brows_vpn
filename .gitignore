@@ -51,3 +51,8 @@ temp/
 # Configuration with sensitive data
 config.local.json
 secrets/
+proxy-service/xray-core/xray-config.json
+proxy-service/xray-core/xray-config-*.json
+proxy-service/xray-core/access.log
+proxy-service/xray-core/error.log
+proxy-service/xray-core/wintun.dll

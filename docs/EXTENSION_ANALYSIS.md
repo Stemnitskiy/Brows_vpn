@@ -1,5 +1,8 @@
 # Censor Tracker Extension - Detailed Analysis
 
+> **Справочный документ** (Phase 1). Активный extension — корневой `extension/`, не `src/`.  
+> План: [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)
+
 ## Project Overview
 
 **Repository**: censortracker/censortracker  

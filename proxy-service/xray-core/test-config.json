@@ -1,0 +1,5 @@
+{
+  "log": {"loglevel": "warning"},
+  "inbounds": [{"tag":"socks-in","protocol":"socks","listen":"127.0.0.1","port":1080,"settings":{"auth":"noauth","udp":true}}],
+  "outbounds": [{"tag":"proxy","protocol":"vless","settings":{"vnext":[{"address":"127.0.0.1","port":1,"users":[{"id":"550e8400-e29b-41d4-a716-446655440000","encryption":"none"}]}]},"streamSettings":{"network":"tcp","security":"reality","realitySettings":{"serverName":"example.com","publicKey":"test","fingerprint":"chrome"}}},{"protocol":"freedom","tag":"direct"}]
+}

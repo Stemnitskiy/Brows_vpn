@@ -2,13 +2,14 @@
   "manifest_version": 3,
   "name": "Brows VPN",
   "version": "1.0.0",
-  "description": "Browser extension with VLESS VPN integration for selective site proxying",
+  "description": "VPN для браузера через VLESS: выборочная или полная прокси-маршрутизация",
   "permissions": [
     "proxy",
     "storage",
     "activeTab",
     "alarms",
-    "nativeMessaging"
+    "nativeMessaging",
+    "webRequest"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -29,6 +30,5 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  },
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
+  }
 }

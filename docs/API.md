@@ -1,5 +1,9 @@
 # Brows VPN - API Documentation
 
+> **Обновлено:** 2026-05-22  
+> **Статус:** спецификация целевого API; в коде реализованы только `enable_vpn`, `disable_vpn`, `get_status` (handler — заглушка).  
+> **План:** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)
+
 ## Native Messaging Protocol
 
 ### Overview
@@ -158,8 +162,8 @@ Retrieves current VPN status and statistics.
       "connected_since": "2024-01-01T00:00:00Z",
       "uptime_seconds": 3600,
       "connection_info": {
-        "server_address": "103.228.168.248",
-        "server_port": 34286,
+        "server_address": "vpn.example.com",
+        "server_port": 443,
         "protocol": "vless",
         "security": "reality"
       },
@@ -373,7 +377,7 @@ Retrieves log entries.
           "component": "vless_client",
           "message": "Connection timeout",
           "context": {
-            "server": "103.228.168.248:34286",
+            "server": "vpn.example.com:443",
             "attempt": 3
           }
         }
@@ -602,27 +606,27 @@ vless://[uuid]@[address]:[port]?[parameters]#[name]
 ### Example Configuration
 
 ```
-vless://63197442-76bb-4ab0-b99f-bcb682d8c2ac@103.228.168.248:34286?type=grpc&encryption=none&serviceName=vpn&security=reality&pbk=EIg-mGPQDao0xcoptrd7Gix2viSn9MYS85hPQUfW2Qs&fp=chrome&sni=yahoo.com&sid=3130&spx=%2F#WORK%20PC
+vless://550e8400-e29b-41d4-a716-446655440000@vpn.example.com:443?type=grpc&encryption=none&serviceName=vpn&security=reality&pbk=BASE64_PUBLIC_KEY&fp=chrome&sni=example.com&sid=abcd&spx=%2F#MyProfile
 ```
 
 ### Configuration Object (Internal)
 
 ```json
 {
-  "uuid": "63197442-76bb-4ab0-b99f-bcb682d8c2ac",
-  "address": "103.228.168.248",
-  "port": 34286,
+  "uuid": "550e8400-e29b-41d4-a716-446655440000",
+  "address": "vpn.example.com",
+  "port": 443,
   "type": "grpc",
   "encryption": "none",
   "serviceName": "vpn",
   "authority": "",
   "security": "reality",
-  "publicKey": "EIg-mGPQDao0xcoptrd7Gix2viSn9MYS85hPQUfW2Qs",
+  "publicKey": "BASE64_PUBLIC_KEY",
   "fingerprint": "chrome",
-  "sni": "yahoo.com",
-  "shortId": "3130",
+  "sni": "example.com",
+  "shortId": "abcd",
   "spix": "/",
-  "name": "WORK PC"
+  "name": "MyProfile"
 }
 ```
 
@@ -719,3 +723,37 @@ interface LogEntry {
   context?: Record<string, any>;
 }
 ```
+
+---
+
+## Implementation Status (2026-05-22)
+
+### Transport layer
+
+| Компонент | Статус |
+|-----------|--------|
+| Chrome length-prefixed framing (4 byte LE + JSON) | ❌ Не реализовано (`host.go` использует построчный JSON) |
+| JSON host manifest + `allowed_origins` | ❌ Не создан |
+| Registry → path to manifest | ❌ Registry указывает на exe |
+
+### Commands
+
+| Command | Extension client | Go handler | Xray wired |
+|---------|------------------|------------|------------|
+| `enable_vpn` | ✅ | 🟡 Stub | ❌ |
+| `disable_vpn` | ✅ | 🟡 Stub | ❌ |
+| `get_status` | ✅ | 🟡 Stub | ❌ |
+| `update_domains` | ❌ | ❌ | — |
+| `import_config` | ❌ | ❌ | — |
+| `export_config` | ❌ | ❌ | — |
+| `get_logs` | ❌ | ❌ | — |
+
+### Events
+
+| Event | Status |
+|-------|--------|
+| `connection_status_changed` | ❌ Planned |
+| `error_occurred` | ❌ Planned |
+| `statistics_update` | ❌ Planned |
+
+См. [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) для плана реализации.

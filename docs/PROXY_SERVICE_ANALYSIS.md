@@ -1,5 +1,8 @@
 # Censor Tracker Proxy Service - Detailed Analysis
 
+> **Справочный документ** (Phase 1). Brows VPN proxy переписан на Go, не C++/Qt.  
+> План: [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)
+
 ## Project Overview
 
 **Repository**: censortracker/proxy  

@@ -145,14 +145,24 @@ func (c *VLESSConfig) Validate() error {
 	return nil
 }
 
-// ToXrayConfig converts VLESS config to Xray-core configuration format
-func (c *VLESSConfig) ToXrayConfig() map[string]interface{} {
-	config := map[string]interface{}{
+// ToXrayConfig converts VLESS config to Xray-core configuration format.
+func (c *VLESSConfig) ToXrayConfig(socksPort int) map[string]interface{} {
+	if socksPort <= 0 {
+		socksPort = 10808
+	}
+
+	return map[string]interface{}{
+		"log": map[string]interface{}{
+			"loglevel": "info",
+			"access":   "access.log",
+			"error":    "error.log",
+		},
 		"inbounds": []map[string]interface{}{
 			{
+				"tag":      "socks-in",
 				"protocol": "socks",
 				"listen":   "127.0.0.1",
-				"port":     1080,
+				"port":     socksPort,
 				"settings": map[string]interface{}{
 					"auth": "noauth",
 					"udp":  true,
@@ -161,6 +171,7 @@ func (c *VLESSConfig) ToXrayConfig() map[string]interface{} {
 		},
 		"outbounds": []map[string]interface{}{
 			{
+				"tag":      "proxy",
 				"protocol": "vless",
 				"settings": map[string]interface{}{
 					"vnext": []map[string]interface{}{
@@ -184,18 +195,21 @@ func (c *VLESSConfig) ToXrayConfig() map[string]interface{} {
 			},
 		},
 		"routing": map[string]interface{}{
-			"domainStrategy": "IPIfNonMatch",
+			"domainStrategy": "AsIs",
 			"rules": []map[string]interface{}{
 				{
-					"type": "field",
-					"ip":  []string{"geoip:private"},
+					"type":        "field",
+					"ip":          []string{"geoip:private"},
 					"outboundTag": "direct",
+				},
+				{
+					"type":        "field",
+					"inboundTag":  []string{"socks-in"},
+					"outboundTag": "proxy",
 				},
 			},
 		},
 	}
-
-	return config
 }
 
 func (c *VLESSConfig) buildStreamSettings() map[string]interface{} {
@@ -203,28 +217,34 @@ func (c *VLESSConfig) buildStreamSettings() map[string]interface{} {
 		"network": c.Type,
 	}
 
-	// Add TLS/Reality settings
-	if c.Security == "reality" || c.Security == "tls" {
+	switch c.Security {
+	case "reality":
+		settings["security"] = "reality"
+		realitySettings := map[string]interface{}{
+			"show":        false,
+			"serverName":  c.SNI,
+			"password":    c.PublicKey,
+			"fingerprint": defaultFingerprint(c.Fingerprint),
+		}
+		if c.ShortID != "" {
+			realitySettings["shortId"] = c.ShortID
+		}
+		if c.SPIX != "" {
+			realitySettings["spiderX"] = c.SPIX
+		}
+		settings["realitySettings"] = realitySettings
+	case "tls":
+		settings["security"] = "tls"
 		tlsSettings := map[string]interface{}{
 			"serverName":    c.SNI,
 			"allowInsecure": false,
 		}
-		settings["security"] = c.Security
+		if c.Fingerprint != "" {
+			tlsSettings["fingerprint"] = c.Fingerprint
+		}
 		settings["tlsSettings"] = tlsSettings
 	}
 
-	// Add Reality-specific settings
-	if c.Security == "reality" {
-		realitySettings := map[string]interface{}{
-			"dest":        fmt.Sprintf("%s:%d", c.Address, c.Port),
-			"serverNames": []string{c.SNI},
-			"privateKey":  "", // Will be generated or loaded
-			"shortIds":    []string{c.ShortID},
-		}
-		settings["realitySettings"] = realitySettings
-	}
-
-	// Add gRPC settings
 	if c.Type == "grpc" {
 		grpcSettings := map[string]interface{}{
 			"serviceName": c.ServiceName,
@@ -235,12 +255,12 @@ func (c *VLESSConfig) buildStreamSettings() map[string]interface{} {
 		settings["grpcSettings"] = grpcSettings
 	}
 
-	// Add TLS fingerprint
-	if c.Fingerprint != "" {
-		if tlsSettings, ok := settings["tlsSettings"].(map[string]interface{}); ok {
-			tlsSettings["fingerprint"] = c.Fingerprint
-		}
-	}
-
 	return settings
+}
+
+func defaultFingerprint(fp string) string {
+	if fp == "" {
+		return "chrome"
+	}
+	return fp
 }
