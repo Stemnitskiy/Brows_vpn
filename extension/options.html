@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Brows VPN Settings</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    
+    .container {
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .header {
+      margin-bottom: 20px;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 15px;
+    }
+    
+    .header h1 {
+      margin: 0;
+      color: #333;
+    }
+    
+    .section {
+      margin-bottom: 25px;
+    }
+    
+    .section h2 {
+      color: #4285f4;
+      margin-bottom: 15px;
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      color: #555;
+    }
+    
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    
+    textarea {
+      min-height: 100px;
+      font-family: monospace;
+    }
+    
+    .button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-right: 10px;
+    }
+    
+    .button.primary {
+      background-color: #4285f4;
+      color: white;
+    }
+    
+    .button.primary:hover {
+      background-color: #3367d6;
+    }
+    
+    .button.secondary {
+      background-color: #f1f1f1;
+      color: #333;
+    }
+    
+    .button.secondary:hover {
+      background-color: #e0e0e0;
+    }
+    
+    .status {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    
+    .status.success {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+    
+    .status.error {
+      background-color: #ffebee;
+      color: #c62828;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Brows VPN Settings</h1>
+    </div>
+    
+    <div class="section">
+      <h2>VLESS Configuration</h2>
+      <div class="form-group">
+        <label for="vlessConfig">VLESS Configuration URL</label>
+        <textarea id="vlessConfig" placeholder="vless://uuid@address:port?type=grpc&encryption=none&serviceName=vpn&security=reality&pbk=publicKey&fp=chrome&sni=serverName&sid=sessionId&spx=%2F#name"></textarea>
+      </div>
+      <button class="button primary" id="saveConfig">Save Configuration</button>
+      <button class="button secondary" id="validateConfig">Validate</button>
+      <div class="status" id="configStatus"></div>
+    </div>
+    
+    <div class="section">
+      <h2>Operation Mode</h2>
+      <div class="form-group">
+        <label for="operationMode">VPN Mode</label>
+        <select id="operationMode">
+          <option value="selective">Selective Mode (whitelist only)</option>
+          <option value="global">Global Mode (all traffic)</option>
+          <option value="disabled">Disabled</option>
+        </select>
+      </div>
+      <button class="button primary" id="saveMode">Save Mode</button>
+    </div>
+    
+    <div class="section">
+      <h2>Domain Management</h2>
+      <div class="form-group">
+        <label for="domainList">Whitelist Domains (one per line)</label>
+        <textarea id="domainList" placeholder="example.com&#10;*.google.com&#10;api.twitter.com"></textarea>
+      </div>
+      <button class="button primary" id="saveDomains">Save Domain List</button>
+      <button class="button secondary" id="clearDomains">Clear All</button>
+    </div>
+    
+    <div class="section">
+      <h2>Connection Settings</h2>
+      <div class="form-group">
+        <label for="socksPort">SOCKS5 Proxy Port</label>
+        <input type="number" id="socksPort" value="1080" min="1024" max="65535">
+      </div>
+      <div class="form-group">
+        <label for="logLevel">Log Level</label>
+        <select id="logLevel">
+          <option value="debug">Debug</option>
+          <option value="info" selected>Info</option>
+          <option value="warning">Warning</option>
+          <option value="error">Error</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="autoReconnect" checked>
+          Auto-reconnect on connection failure
+        </label>
+      </div>
+      <button class="button primary" id="saveSettings">Save Settings</button>
+    </div>
+  </div>
+  
+  <script src="options.js"></script>
+</body>
+</html>
