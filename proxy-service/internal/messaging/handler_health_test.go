@@ -3,7 +3,7 @@ package messaging
 import "testing"
 
 func TestHandlePreflight(t *testing.T) {
-	h := NewVPNHandler(nil)
+	h := NewVPNHandler(nil, "")
 	resp, err := h.HandleMessage(Message{
 		MessageType: "command",
 		MessageID:   "pf1",
@@ -26,7 +26,7 @@ func TestHandlePreflight(t *testing.T) {
 }
 
 func TestHandleHealthCheck(t *testing.T) {
-	h := NewVPNHandler(nil)
+	h := NewVPNHandler(nil, "")
 	resp, err := h.HandleMessage(Message{
 		MessageType: "command",
 		MessageID:   "hc1",
@@ -41,7 +41,7 @@ func TestHandleHealthCheck(t *testing.T) {
 }
 
 func TestHandleFindFreePort(t *testing.T) {
-	h := NewVPNHandler(nil)
+	h := NewVPNHandler(nil, "")
 	resp, err := h.HandleMessage(Message{
 		MessageType: "command",
 		MessageID:   "fp1",

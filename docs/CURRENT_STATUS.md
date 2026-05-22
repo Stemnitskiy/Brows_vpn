@@ -2,8 +2,9 @@
 
 > **Обновлено:** 2026-05-22  
 > **Веха v1:** ✅ первое рабочее MVP (`2310c6d`)  
-> **Следующий фокус:** v3 — WebRTC, tray, multi-protocol  
-> **Веха v2:** ✅ extension **v2.0.0** (v2.1–v2.10)  
+> **Следующий фокус:** v3 отложен (tray, multi-protocol) — см. [FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md)  
+> **Веха v2:** ✅ extension **v2.2.0** (v2.1–v2.12)  
+> **Безопасность:** [SECURITY.md](./SECURITY.md)  
 > **План:** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) · **Решения:** [FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md)
 
 ---
@@ -27,17 +28,19 @@
 | **v2.8** | ✅ | Контекстное меню (extension v1.8.0) |
 | **v2.9** | ✅ | Onboarding wizard (extension v1.9.0) |
 | **v2.10** | ✅ | Тёмная тема (extension v2.0.0) |
-| **v3** (tray, WebRTC, …) | ⬜ | Следующий этап |
+| **v2.11** | ✅ | Полировка UI настроек (extension v2.1.0) |
+| **v2.12** | ✅ | Security hardening P0–P2 (extension v2.2.0) |
+| **v3** (tray, multi-protocol, …) | ⏸ | Отложено |
 
 ---
 
 ## v1 — что работает
 
 - Popup: power toggle, **IP + статус Xray/SOCKS**, «Добавить сайт», badge (v1.4.0)  
-- Settings: VLESS, whitelist, **исключения**, режим (selective / global / global_exclude), порт, диагностика  
+- Settings: режим → видимые блоки, VLESS-профили (модал), whitelist / исключения / routing, порт, import/export; диагностика — отдельная страница  
 - Enable VPN → Xray → PAC → SOCKS  
 - «Подобрать порт», полная preflight-проверка  
-- Тесты: `go test ./...`, `node scripts/test-pac-whitelist.js`
+- Тесты: `go test ./...`, `node scripts/test-pac-whitelist.js`, `node scripts/test-settings-import-export.js`, CI GitHub Actions  
 
 ---
 
@@ -55,6 +58,8 @@
 | v2.8 | ✅ Контекстное меню | extension **v1.8.0** |
 | v2.9 | ✅ Onboarding wizard | extension **v1.9.0** |
 | v2.10 | ✅ Тёмная тема | extension **v2.0.0** |
+| v2.11 | ✅ Полировка UI | extension **v2.1.0** |
+| v2.12 | ✅ Security P0–P2 | extension **v2.2.0** |
 
 ---
 

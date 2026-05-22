@@ -1,8 +1,7 @@
-# Brows VPN — Статус проекта
+# Brows VPN — Статус проекта (архив)
 
-> **⚠️ Проект НЕ завершён.** Документ `PROJECT_COMPLETE.md` ранее содержал завышенную оценку (~95%).  
-> **Актуальный статус:** ~40% MVP  
-> **План доработки:** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)
+> **📦 Архивный документ.** Актуальный статус: [CURRENT_STATUS.md](./CURRENT_STATUS.md) (extension **v2.2.0**, v2 complete).  
+> Ниже — историческая запись аудита 2026-05-22, когда docs показывали ~40% MVP.
 
 ---
 

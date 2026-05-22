@@ -732,28 +732,31 @@ interface LogEntry {
 
 | Компонент | Статус |
 |-----------|--------|
-| Chrome length-prefixed framing (4 byte LE + JSON) | ❌ Не реализовано (`host.go` использует построчный JSON) |
-| JSON host manifest + `allowed_origins` | ❌ Не создан |
-| Registry → path to manifest | ❌ Registry указывает на exe |
+| Chrome length-prefixed framing (4 byte LE + JSON) | ✅ `internal/messaging/host.go` |
+| JSON host manifest + `allowed_origins` | ✅ `com.browsvpn.host.json` |
+| Registry → path to manifest | ✅ `setup_registry.bat` |
+| Caller origin (argv) + `allowed_origins` manifest | ✅ v2.2.1 — см. [SECURITY.md](./SECURITY.md) |
 
 ### Commands
 
 | Command | Extension client | Go handler | Xray wired |
 |---------|------------------|------------|------------|
-| `enable_vpn` | ✅ | 🟡 Stub | ❌ |
-| `disable_vpn` | ✅ | 🟡 Stub | ❌ |
-| `get_status` | ✅ | 🟡 Stub | ❌ |
-| `update_domains` | ❌ | ❌ | — |
-| `import_config` | ❌ | ❌ | — |
-| `export_config` | ❌ | ❌ | — |
-| `get_logs` | ❌ | ❌ | — |
+| `enable_vpn` | ✅ | ✅ | ✅ |
+| `disable_vpn` | ✅ | ✅ | ✅ |
+| `get_status` | ✅ | ✅ | ✅ |
+| `preflight` | ✅ | ✅ | — |
+| `health_check` | ✅ | ✅ | — |
+| `get_logs` | ✅ | ✅ (redacted) | — |
+| `find_free_port` | ✅ | ✅ | — |
+| `update_domains` | — (PAC in extension) | — | — |
+| `import_config` / `export_config` | ✅ (extension JSON) | — | — |
 
 ### Events
 
 | Event | Status |
 |-------|--------|
-| `connection_status_changed` | ❌ Planned |
+| `connection_status_changed` | ❌ Not implemented (poll/alarms) |
 | `error_occurred` | ❌ Planned |
 | `statistics_update` | ❌ Planned |
 
-См. [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) для плана реализации.
+Routing mode enforced in **extension PAC**, not Go data plane.

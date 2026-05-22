@@ -13,13 +13,21 @@ go test ./...
 go build -o browsvpn-proxy.exe ./cmd
 go run ..\scripts\test-local-integration.go
 powershell -File ..\scripts\check-env.ps1
+
+cd ..
+node scripts/test-pac-whitelist.js
+node scripts/test-settings-import-export.js
 ```
+
+CI: `.github/workflows/test.yml` (Go + Node scripts на push/PR).
 
 ### Что проверяют автотесты
 
 | Тест | Проверка |
 |------|----------|
-| `go test ./...` | VLESS parser, native messaging protocol, VPN handler |
+| `go test ./...` | VLESS parser, native messaging protocol, VPN handler, auth redact |
+| `test-pac-whitelist.js` | PAC selective, global_exclude, smart routing |
+| `test-settings-import-export.js` | Export/import, applySettingsUpdate, safe export |
 | `test-local-integration.go` | Subprocess NM: get_status → enable_vpn → порт 10808 → disable_vpn |
 | `check-env.ps1` | Go, Node, exe, xray, manifest |
 | Settings → **Run Full Preflight** | Extension + native checks без Enable |

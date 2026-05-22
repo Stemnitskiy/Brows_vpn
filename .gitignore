@@ -14,7 +14,6 @@ out/
 *.dylib
 
 # Go specific
-go.sum
 *.exe~
 *.dll~
 *.so~

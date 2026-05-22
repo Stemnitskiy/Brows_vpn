@@ -3,81 +3,96 @@
 let profilesState = [];
 let activeProfileIdState = null;
 let pendingImportSettings = null;
+let profileModalEditId = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   await BrowsTheme.loadAndApply();
-  loadSettings();
+  await loadSettings();
 
   document.getElementById('themeMode').addEventListener('change', async (e) => {
     await BrowsTheme.save(e.target.value);
     showToast('Тема сохранена', 'success');
   });
 
+  setupModal('profileModal', { cancelIds: ['profileModalCancel'] });
+  setupModal('connectionModal');
+  setupModal('importExportModal');
+  setupModal('diagnosticsModal');
+
+  document.getElementById('openConnectionBtn').addEventListener('click', () => openModal('connectionModal'));
+  document.getElementById('openImportExportBtn').addEventListener('click', () => openModal('importExportModal'));
+  document.getElementById('openDiagnosticsBtn').addEventListener('click', async () => {
+    openModal('diagnosticsModal');
+    await refreshDiagnostics();
+  });
+
   document.getElementById('restartOnboardingBtn').addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('onboarding.html') });
   });
 
-  document.getElementById('addProfileBtn').addEventListener('click', () => {
-    const id = BrowsValidators.generateProfileId();
-    const n = profilesState.length + 1;
-    const url = document.getElementById('vlessConfig').value.trim();
-    profilesState.push({
-      id,
-      name: `Профиль ${n}`,
-      protocol: 'vless',
-      vless_url: url
+  document.getElementById('debugLogging').addEventListener('change', async (e) => {
+    await chrome.storage.local.set({ debugLogging: e.target.checked });
+    await chrome.runtime.sendMessage({
+      action: 'setDebugLogging',
+      enabled: e.target.checked
     });
-    activeProfileIdState = id;
-    renderProfileList();
-    saveProfilesToStorage();
-    showToast('Профиль добавлен', 'success');
   });
 
-  document.getElementById('saveConfig').addEventListener('click', async () => {
-    const vlessConfig = document.getElementById('vlessConfig').value;
+  document.getElementById('refreshLogsBtn').addEventListener('click', () => refreshDiagnostics());
+  document.getElementById('clearLogsBtn').addEventListener('click', async () => {
+    await chrome.runtime.sendMessage({ action: 'clearDiagnosticLogs' });
+    document.getElementById('diagnosticLog').value = '';
+    showToast('Журнал очищен', 'success');
+  });
 
-    if (vlessConfig) {
-      try {
-        const v = BrowsValidators.validateVlessUrl(vlessConfig);
-        if (!v.ok) throw new Error(v.errors.join('; '));
-
-        await syncActiveProfileUrl(vlessConfig);
-        await chrome.storage.local.set({ vlessConfig });
-        await chrome.runtime.sendMessage({
-          action: 'updateSettings',
-          vlessConfig,
-          profiles: profilesState,
-          activeProfileId: activeProfileIdState
-        });
-
-        const msg = v.warnings.length
-          ? 'Конфигурация сохранена. Предупреждения: ' + v.warnings.join('; ')
-          : 'Конфигурация сохранена';
-        showToast(msg, 'success');
-      } catch (error) {
-        showToast(error.message, 'error');
-      }
-    } else {
-      showToast('Введите VLESS URL', 'error');
+  document.getElementById('runPreflightBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('runPreflightBtn');
+    setButtonLoading(btn, true);
+    try {
+      const result = await chrome.runtime.sendMessage({ action: 'runPreflight' });
+      const lines = ['=== Проверки расширения ===', formatChecks(result.local)];
+      lines.push('=== Проверки Go-сервиса ===', formatChecks(result.native));
+      document.getElementById('diagnosticLog').value = lines.join('\n');
+      const allOk = result.local?.ok && result.native?.ok;
+      showPacResult(
+        allOk ? 'Все проверки пройдены' : 'Обнаружены проблемы — см. журнал',
+        allOk ? 'success' : 'error'
+      );
+    } finally {
+      setButtonLoading(btn, false);
     }
   });
 
-  document.getElementById('validateConfig').addEventListener('click', () => {
-    const vlessConfig = document.getElementById('vlessConfig').value;
-
-    if (vlessConfig) {
-      const v = BrowsValidators.validateVlessUrl(vlessConfig);
-      if (v.ok) {
-        const msg = v.warnings.length
-          ? 'Формат корректен. Предупреждения: ' + v.warnings.join('; ')
-          : 'Формат конфигурации корректен';
-        showToast(msg, 'success');
-      } else {
-        showToast(v.errors.join('; '), 'error');
-      }
-    } else {
-      showToast('Введите VLESS URL', 'error');
+  document.getElementById('testPacBtn').addEventListener('click', async () => {
+    const testHost = document.getElementById('testHost').value.trim();
+    if (!testHost) {
+      showPacResult('Введите имя хоста для проверки', 'error');
+      return;
     }
+    await refreshDiagnostics(testHost);
+    const result = await chrome.runtime.sendMessage({
+      action: 'getDiagnostics',
+      testHost
+    });
+    const match = result.text.match(/=== PAC:.*?===\n([^\n=]+)/);
+    const route = match ? match[1].trim() : 'неизвестно';
+    showPacResult(`${testHost} → ${route}`, route.includes('SOCKS') ? 'success' : 'error');
+  });
+
+  document.querySelectorAll('input[name="operationMode"]').forEach((input) => {
+    input.addEventListener('change', () => updateModeSections(getSelectedMode()));
+  });
+
+  document.getElementById('addProfileBtn').addEventListener('click', () => openProfileModal());
+
+  document.getElementById('profileModalCancel').addEventListener('click', closeProfileModal);
+  document.getElementById('profileModalValidate').addEventListener('click', validateProfileModal);
+  document.getElementById('profileModalSave').addEventListener('click', saveProfileModal);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!document.getElementById('profileModal').hidden) closeProfileModal();
+    else closeTopModal();
   });
 
   document.getElementById('saveMode').addEventListener('click', async () => {
@@ -89,6 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       mode: operationMode
     });
 
+    updateModeSections(operationMode);
     showToast('Режим работы сохранён', 'success');
   });
 
@@ -180,36 +196,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     showToast('Свои правила очищены', 'success');
   });
 
-  document.getElementById('exportSettingsBtn').addEventListener('click', async () => {
+  document.getElementById('downloadExportBtn').addEventListener('click', async () => {
+    await downloadSettingsExport(true);
+  });
+
+  document.getElementById('downloadExportSafeBtn').addEventListener('click', async () => {
+    await downloadSettingsExport(false);
+  });
+
+  document.getElementById('exportClipboardBtn').addEventListener('click', async () => {
+    const includeSecrets = document.getElementById('exportIncludeSecrets').checked;
+    if (includeSecrets && !window.confirm('JSON будет содержать VLESS URL. Продолжить копирование в буфер обмена?')) {
+      return;
+    }
     try {
       const stored = await chrome.storage.local.get(null);
-      const payload = BrowsValidators.buildSettingsExport(stored);
+      const payload = BrowsValidators.buildSettingsExport(stored, { includeSecrets });
       const json = JSON.stringify(payload, null, 2);
       await navigator.clipboard.writeText(json);
-      showToast('Настройки скопированы в буфер обмена', 'success');
+      showToast(
+        includeSecrets ? 'Настройки (с секретами) скопированы' : 'Настройки без секретов скопированы',
+        'success'
+      );
     } catch (error) {
-      showToast('Не удалось экспортировать: ' + error.message, 'error');
+      showToast('Не удалось скопировать: ' + error.message, 'error');
     }
   });
 
-  document.getElementById('downloadExportBtn').addEventListener('click', async () => {
+  async function downloadSettingsExport(includeSecrets) {
     try {
       const stored = await chrome.storage.local.get(null);
-      const payload = BrowsValidators.buildSettingsExport(stored);
+      const payload = BrowsValidators.buildSettingsExport(stored, { includeSecrets });
       const json = JSON.stringify(payload, null, 2);
       const stamp = new Date().toISOString().slice(0, 10);
+      const suffix = includeSecrets ? '' : '-no-secrets';
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `brows-vpn-settings-${stamp}.json`;
+      link.download = `brows-vpn-settings${suffix}-${stamp}.json`;
       link.click();
       URL.revokeObjectURL(url);
-      showToast('Файл загружен', 'success');
+      showToast(includeSecrets ? 'Файл загружен' : 'Файл без секретов загружен', 'success');
     } catch (error) {
       showToast('Не удалось скачать: ' + error.message, 'error');
     }
-  });
+  }
 
   document.getElementById('importFileBtn').addEventListener('click', () => {
     document.getElementById('importFile').click();
@@ -301,69 +333,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  document.getElementById('runPreflightBtn').addEventListener('click', async () => {
-    const btn = document.getElementById('runPreflightBtn');
-    setButtonLoading(btn, true);
-    try {
-      const result = await chrome.runtime.sendMessage({ action: 'runPreflight' });
-      const lines = ['=== Проверки расширения ===', formatChecks(result.local)];
-      lines.push('=== Проверки Go-сервиса ===', formatChecks(result.native));
-      document.getElementById('diagnosticLog').value = lines.join('\n');
-      const allOk = result.local?.ok && result.native?.ok;
-      showPacResult(
-        allOk ? 'Все проверки пройдены' : 'Обнаружены проблемы — см. журнал',
-        allOk ? 'success' : 'error'
-      );
-    } finally {
-      setButtonLoading(btn, false);
-    }
-  });
-
-  function formatChecks(report) {
-    if (!report) return '(нет данных)';
-    if (report.error) return report.error;
-    return (report.checks || []).map((c) => `[${c.ok ? 'OK' : c.level}] ${c.id}: ${c.message}`).join('\n');
-  }
-
-  document.getElementById('debugLogging').addEventListener('change', async (e) => {
-    await chrome.runtime.sendMessage({
-      action: 'setDebugLogging',
-      enabled: e.target.checked
-    });
-  });
-
-  document.getElementById('refreshLogsBtn').addEventListener('click', () => refreshDiagnostics());
-
-  document.getElementById('clearLogsBtn').addEventListener('click', async () => {
-    await chrome.runtime.sendMessage({ action: 'clearDiagnosticLogs' });
-    document.getElementById('diagnosticLog').value = '';
-    showToast('Журнал очищен', 'success');
-  });
-
-  document.getElementById('testPacBtn').addEventListener('click', async () => {
-    const testHost = document.getElementById('testHost').value.trim();
-    if (!testHost) {
-      showPacResult('Введите имя хоста для проверки', 'error');
-      return;
-    }
-    await refreshDiagnostics(testHost);
-    const result = await chrome.runtime.sendMessage({
-      action: 'getDiagnostics',
-      testHost
-    });
-    const match = result.text.match(/=== PAC:.*?===\n([^\n=]+)/);
-    const route = match ? match[1].trim() : 'неизвестно';
-    showPacResult(`${testHost} → ${route}`, route.includes('SOCKS') ? 'success' : 'error');
-  });
-
-  async function refreshDiagnostics(testHost = '') {
-    const result = await chrome.runtime.sendMessage({
-      action: 'getDiagnostics',
-      testHost: testHost || document.getElementById('testHost').value.trim()
-    });
-    document.getElementById('diagnosticLog').value = result.text || '(нет данных)';
-  }
-
   function getSelectedMode() {
     const checked = document.querySelector('input[name="operationMode"]:checked');
     return checked ? checked.value : 'selective';
@@ -374,11 +343,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (input) input.checked = true;
   }
 
-  function showPacResult(message, type) {
-    const el = document.getElementById('pacTestResult');
-    el.hidden = false;
-    el.textContent = message;
-    el.className = 'result-banner ' + type;
+  function updateModeSections(mode) {
+    document.querySelectorAll('.section-mode').forEach((el) => {
+      const modes = (el.dataset.modes || '').split(/\s+/).filter(Boolean);
+      el.hidden = !modes.includes(mode);
+    });
   }
 
   function showToast(message, type) {
@@ -425,7 +394,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       'socksPort',
       'logLevel',
       'autoReconnect',
-      'debugLogging',
       'theme'
     ]);
 
@@ -436,14 +404,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     );
     profilesState = migrated.profiles;
     activeProfileIdState = migrated.activeProfileId;
-
-    const activeUrl = BrowsValidators.activeProfileVlessUrl(profilesState, activeProfileIdState);
-    document.getElementById('vlessConfig').value = activeUrl || data.vlessConfig || '';
     renderProfileList();
 
-    if (data.operationMode) {
-      setSelectedMode(data.operationMode);
-    }
+    const mode = data.operationMode || 'selective';
+    setSelectedMode(mode);
+    updateModeSections(mode);
 
     if (data.domainList && Array.isArray(data.domainList)) {
       document.getElementById('domainList').value = data.domainList.join('\n');
@@ -479,8 +444,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const themeMode = data.theme || 'system';
     document.getElementById('themeMode').value = themeMode;
     BrowsTheme.apply(themeMode);
-
-    refreshDiagnostics();
   }
 
   function renderProfileList() {
@@ -490,7 +453,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!profilesState.length) {
       const empty = document.createElement('li');
       empty.className = 'profile-empty';
-      empty.textContent = 'Нет профилей — нажмите «+ Новый» или сохраните VLESS URL';
+      empty.textContent = 'Нет профилей — нажмите «+ Новый»';
       list.appendChild(empty);
       return;
     }
@@ -506,15 +469,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       radio.checked = profile.id === activeProfileIdState;
       radio.addEventListener('change', () => selectProfile(profile.id));
 
-      const nameInput = document.createElement('input');
-      nameInput.type = 'text';
-      nameInput.className = 'profile-name-input';
-      nameInput.value = profile.name;
-      nameInput.title = 'Название профиля';
-      nameInput.addEventListener('change', () => {
-        profile.name = nameInput.value.trim() || profile.name;
-        saveProfilesToStorage();
-      });
+      const meta = document.createElement('div');
+      meta.className = 'profile-meta';
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'profile-name-display';
+      nameEl.textContent = profile.name || 'Без названия';
+
+      const hintEl = document.createElement('span');
+      hintEl.className = 'profile-url-hint';
+      hintEl.textContent = formatProfileUrlHint(profile.vless_url);
+
+      meta.append(nameEl, hintEl);
+
+      const actions = document.createElement('div');
+      actions.className = 'profile-item-actions';
+
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'profile-edit';
+      editBtn.textContent = 'Изменить';
+      editBtn.addEventListener('click', () => openProfileModal(profile.id));
 
       const delBtn = document.createElement('button');
       delBtn.type = 'button';
@@ -522,38 +497,130 @@ document.addEventListener('DOMContentLoaded', async () => {
       delBtn.textContent = 'Удалить';
       delBtn.addEventListener('click', () => deleteProfile(profile.id));
 
-      li.append(radio, nameInput, delBtn);
+      actions.append(editBtn, delBtn);
+      li.append(radio, meta, actions);
       list.appendChild(li);
     }
   }
 
+  function formatProfileUrlHint(url) {
+    if (!url || !url.trim()) return 'URL не задан';
+    const trimmed = url.trim();
+    if (trimmed.length <= 48) return trimmed;
+    return trimmed.slice(0, 24) + '…' + trimmed.slice(-16);
+  }
+
   function selectProfile(profileId) {
     activeProfileIdState = profileId;
-    const profile = profilesState.find((p) => p.id === profileId);
-    if (profile) {
-      document.getElementById('vlessConfig').value = profile.vless_url || '';
-    }
     renderProfileList();
     saveProfilesToStorage();
   }
 
-  async function syncActiveProfileUrl(url) {
-    if (!activeProfileIdState) {
+  function openProfileModal(profileId = null) {
+    profileModalEditId = profileId;
+    const modal = document.getElementById('profileModal');
+    const title = document.getElementById('profileModalTitle');
+    const nameInput = document.getElementById('profileModalName');
+    const vlessInput = document.getElementById('profileModalVless');
+    const errorEl = document.getElementById('profileModalError');
+
+    if (profileId) {
+      const profile = profilesState.find((p) => p.id === profileId);
+      title.textContent = 'Редактирование профиля';
+      nameInput.value = profile?.name || '';
+      vlessInput.value = profile?.vless_url || '';
+    } else {
+      title.textContent = 'Новый профиль';
+      nameInput.value = '';
+      vlessInput.value = '';
+    }
+
+    errorEl.hidden = true;
+    errorEl.textContent = '';
+    modal.hidden = false;
+    modal.setAttribute('aria-hidden', 'false');
+    nameInput.focus();
+  }
+
+  function closeProfileModal() {
+    const modal = document.getElementById('profileModal');
+    modal.hidden = true;
+    modal.setAttribute('aria-hidden', 'true');
+    profileModalEditId = null;
+  }
+
+  function showProfileModalError(message) {
+    const errorEl = document.getElementById('profileModalError');
+    errorEl.textContent = message;
+    errorEl.hidden = !message;
+  }
+
+  function validateProfileModal() {
+    const vless = document.getElementById('profileModalVless').value.trim();
+    if (!vless) {
+      showProfileModalError('Введите VLESS URL');
+      return false;
+    }
+    const v = BrowsValidators.validateVlessUrl(vless);
+    if (!v.ok) {
+      showProfileModalError(v.errors.join('; '));
+      return false;
+    }
+    if (v.warnings.length) {
+      showToast('Формат корректен. Предупреждения: ' + v.warnings.join('; '), 'success');
+    } else {
+      showToast('Формат конфигурации корректен', 'success');
+    }
+    showProfileModalError('');
+    return true;
+  }
+
+  async function saveProfileModal() {
+    const name = document.getElementById('profileModalName').value.trim();
+    const vless = document.getElementById('profileModalVless').value.trim();
+
+    if (!vless) {
+      showProfileModalError('Введите VLESS URL');
+      return;
+    }
+
+    const v = BrowsValidators.validateVlessUrl(vless);
+    if (!v.ok) {
+      showProfileModalError(v.errors.join('; '));
+      return;
+    }
+
+    if (profileModalEditId) {
+      const idx = profilesState.findIndex((p) => p.id === profileModalEditId);
+      if (idx >= 0) {
+        profilesState[idx] = {
+          ...profilesState[idx],
+          name: name || profilesState[idx].name,
+          vless_url: vless
+        };
+      }
+    } else {
       const id = BrowsValidators.generateProfileId();
+      const n = profilesState.length + 1;
       profilesState.push({
         id,
-        name: 'Основной',
+        name: name || `Профиль ${n}`,
         protocol: 'vless',
-        vless_url: url
+        vless_url: vless
       });
       activeProfileIdState = id;
-    } else {
-      const idx = profilesState.findIndex((p) => p.id === activeProfileIdState);
-      if (idx >= 0) {
-        profilesState[idx] = { ...profilesState[idx], vless_url: url };
-      }
     }
+
+    await saveProfilesToStorage();
     renderProfileList();
+
+    const wasEdit = !!profileModalEditId;
+    closeProfileModal();
+
+    const msg = v.warnings.length
+      ? 'Профиль сохранён. Предупреждения: ' + v.warnings.join('; ')
+      : wasEdit ? 'Профиль обновлён' : 'Профиль добавлен';
+    showToast(msg, 'success');
   }
 
   function deleteProfile(profileId) {
@@ -564,8 +631,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     profilesState = profilesState.filter((p) => p.id !== profileId);
     if (activeProfileIdState === profileId) {
       activeProfileIdState = profilesState[0]?.id || null;
-      const profile = profilesState[0];
-      document.getElementById('vlessConfig').value = profile?.vless_url || '';
     }
     renderProfileList();
     saveProfilesToStorage();
@@ -681,5 +746,79 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await loadSettings();
     BrowsTheme.apply(settings.theme || 'system');
+  }
+
+  const MODAL_STACK = ['diagnosticsModal', 'importExportModal', 'connectionModal', 'profileModal'];
+
+  function openModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    modal.hidden = false;
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    modal.hidden = true;
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  function closeTopModal() {
+    for (const id of MODAL_STACK) {
+      const modal = document.getElementById(id);
+      if (modal && !modal.hidden) {
+        if (id === 'profileModal') closeProfileModal();
+        else closeModal(id);
+        return;
+      }
+    }
+  }
+
+  function setupModal(id, { cancelIds = [] } = {}) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    modal.querySelectorAll('[data-close="' + id + '"]').forEach((el) => {
+      el.addEventListener('click', () => {
+        if (id === 'profileModal') closeProfileModal();
+        else closeModal(id);
+      });
+    });
+    for (const cancelId of cancelIds) {
+      const btn = document.getElementById(cancelId);
+      if (btn) {
+        btn.addEventListener('click', () => {
+          if (id === 'profileModal') closeProfileModal();
+          else closeModal(id);
+        });
+      }
+    }
+  }
+
+  function formatChecks(report) {
+    if (!report) return '(нет данных)';
+    if (report.error) return report.error;
+    return (report.checks || []).map((c) => `[${c.ok ? 'OK' : c.level}] ${c.id}: ${c.message}`).join('\n');
+  }
+
+  async function refreshDiagnostics(testHost = '') {
+    const result = await chrome.runtime.sendMessage({
+      action: 'getDiagnostics',
+      testHost: testHost || document.getElementById('testHost').value.trim()
+    });
+    document.getElementById('diagnosticLog').value = result.text || '(нет данных)';
+  }
+
+  function showPacResult(message, type) {
+    const el = document.getElementById('pacTestResult');
+    el.hidden = false;
+    el.textContent = message;
+    el.className = 'result-banner ' + type;
+  }
+
+  if (location.hash === '#diagnostics') {
+    openModal('diagnosticsModal');
+    await refreshDiagnostics();
+    history.replaceState(null, '', location.pathname);
   }
 });

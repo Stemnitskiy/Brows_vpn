@@ -1,21 +1,24 @@
 {
   "manifest_version": 3,
   "name": "Brows VPN",
-  "version": "2.0.0",
+  "version": "2.2.1",
   "description": "VPN для браузера через VLESS: выборочная или полная прокси-маршрутизация",
   "permissions": [
     "proxy",
     "storage",
-    "activeTab",
     "tabs",
     "alarms",
     "nativeMessaging",
     "webRequest",
-    "contextMenus"
+    "contextMenus",
+    "privacy"
   ],
   "host_permissions": [
     "<all_urls>"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
   "background": {
     "service_worker": "background.js"
   },

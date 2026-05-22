@@ -8,6 +8,7 @@ import (
 
 	"browsvpn-proxy/internal/logging"
 	"browsvpn-proxy/internal/messaging"
+	"browsvpn-proxy/internal/singleinstance"
 )
 
 func main() {
@@ -20,13 +21,25 @@ func main() {
 }
 
 func runNativeMessaging() {
+	release, err := singleinstance.Acquire()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Brows VPN host: %v\n", err)
+		os.Exit(1)
+	}
+	defer release()
+
 	logger, err := logging.NewDefaultLogger()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to initialize logger: %v\n", err)
 		os.Exit(1)
 	}
 
-	handler := messaging.NewVPNHandler(logger)
+	callerOrigin := ""
+	if len(os.Args) > 1 {
+		callerOrigin = os.Args[1]
+	}
+
+	handler := messaging.NewVPNHandler(logger, callerOrigin)
 	logger.Info("Brows VPN native messaging host started")
 
 	if err := messaging.RunNativeMessagingHost(handler); err != nil {

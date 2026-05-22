@@ -22,8 +22,8 @@
 | Версия | Статус | Содержание |
 |--------|--------|------------|
 | **v1 MVP** | ✅ Done | NM + Xray + selective/global PAC, preflight, health, UI popup/settings |
-| **v2** | 🔜 Next | Per-site add, blacklist, recovery, IP in popup, profiles, rules, import/export, context menu, onboarding, dark theme |
-| **v3** | 📋 Planned | WebRTC, tray, multi-protocol, Firefox/Edge |
+| **v2** | ✅ Done | Per-site add … dark theme, UI polish, **security hardening** |
+| **v3** | ⏸ Paused | Tray, multi-protocol, Firefox — не начато |
 
 ---
 
@@ -178,9 +178,40 @@
 
 ---
 
+## v2.11 — Полировка UI настроек ✅
+
+**Цель:** упростить страницу настроек перед v3.
+
+| # | Задача | Файлы |
+|---|--------|-------|
+| 1 | Блоки зависят от режима (whitelist / exclude / routing) | ✅ `options.html`, `options.js` |
+| 2 | Диагностика на отдельной странице | ✅ `diagnostics.html`, `diagnostics.js` |
+| 3 | VLESS-профили через модальное окно «+ Новый» | ✅ `options.html`, `options.js`, `options.css` |
+
+**Проверка:** режим «Глобальный» скрывает whitelist; «+ Новый» → модал; «Диагностика» — отдельная вкладка.
+
+---
+
+## v2.12 — Security hardening (P0–P2) ✅
+
+**Цель:** подготовка к эксплуатации без входа в v3.
+
+| # | Задача | Файлы |
+|---|--------|-------|
+| 1 | P0: validation в background, PAC port, diagnostics redact | ✅ `validators.js`, `background.js` |
+| 2 | P0: single-instance, config 0600 + wipe | ✅ `singleinstance`, `controller.go`, `handler.go` |
+| 3 | P1: NM via allowed_origins (Chrome standard), export без секретов, CSP | ✅ `origin.go`, `update_allowed_origins.ps1`, `options.*` |
+| 4 | P1: xray integrity sidecar | ✅ `integrity.go` |
+| 5 | P2: CI, go.sum, WebRTC/incognito basics | ✅ `.github/workflows`, `manifest privacy` |
+| 6 | Docs sync | ✅ `SECURITY.md`, `README`, `ROADMAP`, … |
+
+**Проверка:** `go test ./...`, node scripts, `update_allowed_origins.ps1` с ID из onboarding.
+
+---
+
 ### Definition of Done — v2 ✅
 
-- [x] Все пункты v2.1–v2.10 по критериям проверки
+- [x] Все пункты v2.1–v2.12 по критериям проверки
 - [x] `CURRENT_STATUS.md` обновлён
 - [ ] `TESTING.md` — дополнить при необходимости
 - [ ] Нет регрессии v1 E2E (ручная проверка)

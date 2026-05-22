@@ -1,101 +1,71 @@
-# Brows VPN Proxy Service
+# Brows VPN — Proxy Service
 
-Go-based proxy service with Xray-core integration for Brows VPN extension.
+> **Статус:** ✅ Production path — Native Messaging host + Xray controller  
+> **Extension:** v2.2.0 · **SOCKS:** `127.0.0.1:10808`  
+> **Security:** [../docs/SECURITY.md](../docs/SECURITY.md)
 
-> **Статус:** ~30% — каркас готов, native messaging и Xray integration не завершены.  
-> **План:** [docs/IMPLEMENTATION_ROADMAP.md](../docs/IMPLEMENTATION_ROADMAP.md)
+---
 
-## Features
+## Overview
 
-| Feature | Status |
-|---------|--------|
-| VLESS URL parser | ✅ |
-| Xray process controller | ✅ |
-| Native messaging host | 🔴 Protocol/registry incorrect |
-| System tray | 🔴 Disabled in main.go |
-| Structured logging | ✅ |
+Go binary `browsvpn-proxy.exe` — Chrome Native Messaging host. Принимает length-prefixed JSON, управляет процессом Xray, отдаёт preflight/health/logs.
 
-## Requirements
+---
 
-- Go 1.21+
-- Windows 11
-- Xray-core binary (not in repo)
-
-## Installation
-
-### 1. Download Xray-core
-
-From https://github.com/XTLS/Xray-core/releases — place binary at:
-
-```
-proxy-service/xray-core/xray.exe
-```
-
-### 2. Build
+## Build & Install
 
 ```powershell
 cd proxy-service
-go mod tidy
 go build -o browsvpn-proxy.exe ./cmd
+setup_registry.bat
+go build -o browsvpn-proxy.exe ./cmd
+powershell -File update_allowed_origins.ps1 -ExtensionId YOUR_CHROME_EXTENSION_ID
 ```
 
-### 3. Native Messaging Host
+Поместите `xray.exe` + `geoip.dat` + `geosite.dat` в `xray-core/`.
 
-> **⚠️ Pending fix (Roadmap Stage 1):** requires JSON manifest + corrected protocol.
+---
 
-Planned setup:
-1. `com.browsvpn.host.json` — host manifest with `path`, `allowed_origins`
-2. Registry key points to **manifest JSON**, not exe directly
-3. Chrome launches exe without args → native messaging mode by default
+## Commands (native messaging)
 
-See [NATIVE_MESSAGING_SETUP.md](./NATIVE_MESSAGING_SETUP.md) and [docs/FINAL_INSTRUCTIONS.md](../docs/FINAL_INSTRUCTIONS.md).
+| Command | Description |
+|---------|-------------|
+| `enable_vpn` | Parse VLESS, write config, start Xray |
+| `disable_vpn` | Stop Xray, wipe config file |
+| `get_status` | VPN + Xray state |
+| `preflight` | Checks before enable |
+| `health_check` | Runtime checks |
+| `get_logs` | Redacted log tails |
+| `find_free_port` | Pick SOCKS port |
 
-## Usage
+Protocol: **4-byte LE length + JSON** (not line-delimited). See [../docs/API.md](../docs/API.md).
 
-### Standalone Mode (planned)
+---
 
-System tray mode — **currently disabled** in `cmd/main.go`.
-
-### Native Messaging Mode
-
-Chrome extension launches the host automatically when user enables VPN. Manual `--native-messaging` flag is a **temporary workaround** and will be removed.
-
-## Project Structure
+## Layout
 
 ```
 proxy-service/
-├── cmd/main.go              # Entry point
-├── internal/
-│   ├── messaging/host.go    # Native messaging (needs fix)
-│   ├── xray/controller.go   # Xray process management
-│   ├── tray/tray.go         # System tray (not wired)
-│   └── logging/logger.go
-├── pkg/vless/parser.go      # VLESS parser + ToXrayConfig
-├── xray-core/               # xray.exe + geo data
-├── setup_registry.bat       # Needs update for JSON manifest
-└── go.mod
+├── cmd/main.go              # Entry; --standalone stub (v3 tray)
+├── internal/messaging/      # NM host, handler, auth
+├── internal/xray/           # Process + integrity check
+├── internal/singleinstance/ # Windows mutex
+├── pkg/vless/               # VLESS → Xray JSON
+├── com.browsvpn.host.json   # Native host manifest (edit path + origins)
+└── xray-core/               # xray.exe (external download)
 ```
 
-## Configuration
+---
 
-VLESS URL format:
+## Tests
 
+```powershell
+go test ./...
 ```
-vless://uuid@host:port?type=grpc&encryption=none&serviceName=vpn&security=reality&pbk=...&fp=chrome&sni=...&sid=...&spx=%2F#name
-```
 
-## Logs
+---
 
-`logs/app.log` — rotation via lumberjack (100MB, 3 backups, 28 days).
+## Related
 
-## Troubleshooting
-
-| Issue | Check |
-|-------|-------|
-| Go not found | `go version` |
-| Xray not found | `xray-core/xray.exe` exists |
-| Native messaging fails | See [CURRENT_STATUS.md](../docs/CURRENT_STATUS.md) blockers |
-
-## License
-
-MIT
+- [NATIVE_MESSAGING_SETUP.md](./NATIVE_MESSAGING_SETUP.md)
+- [../docs/TESTING.md](../docs/TESTING.md)

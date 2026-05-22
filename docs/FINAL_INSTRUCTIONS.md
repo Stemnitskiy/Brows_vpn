@@ -1,16 +1,8 @@
 # Brows VPN — Инструкция по установке и запуску
 
-> **Статус:** ⚠️ **Черновик — применять после завершения MVP (Этапы 1–2)**  
-> **План:** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)  
-> **Текущие блокеры:** Native Messaging и запуск Xray не работают — см. [CURRENT_STATUS.md](./CURRENT_STATUS.md)
-
----
-
-## Когда использовать этот документ
-
-Эта инструкция станет актуальной после выполнения **Этапа 1–2** плана реализации. До этого следуйте [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) для разработки.
-
----
+> **Статус:** ✅ Актуально для extension **v2.2.0**  
+> **Безопасность (NM token):** [SECURITY.md](./SECURITY.md)  
+> **Краткий старт:** [QUICK_START.md](./QUICK_START.md)
 
 ## Предварительные требования
 

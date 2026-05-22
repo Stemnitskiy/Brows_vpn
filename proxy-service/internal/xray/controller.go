@@ -62,7 +62,7 @@ func (x *XrayController) WriteConfigFile(workDir string) (string, error) {
 		return "", fmt.Errorf("marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(configPath, configData, 0644); err != nil {
+	if err := os.WriteFile(configPath, configData, 0600); err != nil {
 		return "", fmt.Errorf("write config file: %w", err)
 	}
 
@@ -146,6 +146,29 @@ func (x *XrayController) IsRunning() bool {
 
 	// ProcessState is set after Wait(); nil means still running.
 	return x.cmd.ProcessState == nil
+}
+
+// RemoveConfigFile securely removes the active Xray config file.
+func (x *XrayController) RemoveConfigFile() error {
+	x.mu.Lock()
+	defer x.mu.Unlock()
+
+	path := x.configPath
+	if path == "" {
+		return nil
+	}
+
+	if info, err := os.Stat(path); err == nil && info.Size() > 0 {
+		if f, err := os.OpenFile(path, os.O_WRONLY, 0600); err == nil {
+			zeros := make([]byte, info.Size())
+			_, _ = f.Write(zeros)
+			_ = f.Close()
+		}
+	}
+
+	err := os.Remove(path)
+	x.configPath = ""
+	return err
 }
 
 // GetConfigPath returns the active config file path.

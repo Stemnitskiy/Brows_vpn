@@ -5,7 +5,7 @@ import (
 )
 
 func TestVPNHandlerGetStatus(t *testing.T) {
-	handler := NewVPNHandler(nil)
+	handler := NewVPNHandler(nil, "")
 
 	resp, err := handler.HandleMessage(Message{
 		Version:     "1.0",
@@ -35,7 +35,7 @@ func TestVPNHandlerGetStatus(t *testing.T) {
 }
 
 func TestVPNHandlerEnableInvalidURL(t *testing.T) {
-	handler := NewVPNHandler(nil)
+	handler := NewVPNHandler(nil, "")
 
 	resp, err := handler.HandleMessage(Message{
 		Version:     "1.0",

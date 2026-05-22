@@ -7,14 +7,25 @@ const MAX_LOG_ENTRIES = 300;
 
 class DiagnosticLog {
   static async add(level, component, message, data = null) {
+    const stored = await chrome.storage.local.get(['diagnosticLogs', 'debugLogging']);
+    const debugOn = !!stored.debugLogging;
+
+    if (level === 'debug' && !debugOn) {
+      return;
+    }
+    if (level === 'info' && !debugOn && component === 'request') {
+      return;
+    }
+
+    const safeData = data != null ? BrowsValidators.redactDiagnosticData(data) : null;
     const entry = {
       time: new Date().toISOString(),
       level,
       component,
       message,
-      data
+      data: safeData
     };
-    const stored = await chrome.storage.local.get(['diagnosticLogs', 'debugLogging']);
+
     const logs = stored.diagnosticLogs || [];
     logs.push(entry);
     if (logs.length > MAX_LOG_ENTRIES) {
@@ -22,10 +33,14 @@ class DiagnosticLog {
     }
     await chrome.storage.local.set({ diagnosticLogs: logs });
 
+    if (level === 'debug' && !debugOn) return;
+
     const prefix = `[BrowsVPN:${component}]`;
-    if (level === 'error') console.error(prefix, message, data || '');
-    else if (level === 'warn') console.warn(prefix, message, data || '');
-    else console.log(prefix, message, data || '');
+    if (level === 'error') console.error(prefix, message, safeData || '');
+    else if (level === 'warn') console.warn(prefix, message, safeData || '');
+    else if (debugOn || level === 'error' || level === 'warn') {
+      console.log(prefix, message, safeData || '');
+    }
   }
 }
 
@@ -505,37 +520,85 @@ function pacRouteForHost(host, mode, domains) {
 }
 
 async function setProxy(mode, domains = [], socksPort = 10808, excludeDomains = [], routingRules = []) {
+  const safePort = BrowsValidators.sanitizeSocksPort(socksPort, vpnState.socksPort);
   const pacScript = BrowsValidators.generatePACScript(
-    mode, domains, socksPort, excludeDomains, routingRules
+    mode, domains, safePort, excludeDomains, routingRules
   );
   vpnState.lastPacScript = pacScript;
 
-  await DiagnosticLog.add('info', 'proxy', 'Applying PAC', {
-    mode,
-    socksPort,
-    domains,
-    excludeDomains,
-    routingRules,
-    pacPreview: pacScript.slice(0, 500)
-  });
+  if (vpnState.debugLogging) {
+    await DiagnosticLog.add('debug', 'proxy', 'Applying PAC', {
+      mode,
+      socksPort: safePort,
+      domainCount: domains.length,
+      excludeCount: excludeDomains.length,
+      routingRuleCount: routingRules.length
+    });
+  }
 
-  await chrome.proxy.settings.set({
-    scope: 'regular',
-    value: {
-      mode: 'pac_script',
-      pacScript: { data: pacScript, mandatory: true }
-    }
-  });
+  const proxyValue = {
+    mode: 'pac_script',
+    pacScript: { data: pacScript, mandatory: true }
+  };
 
-  const current = await chrome.proxy.settings.get({ incognito: false });
-  await DiagnosticLog.add('info', 'proxy', 'Chrome proxy settings after set', current);
+  await chrome.proxy.settings.set({ scope: 'regular', value: proxyValue });
+
+  if (await chrome.extension.isAllowedIncognitoAccess()) {
+    await chrome.proxy.settings.set({ scope: 'incognito', value: proxyValue });
+  }
 
   return pacScript;
 }
 
 async function clearProxy() {
   await chrome.proxy.settings.clear({ scope: 'regular' });
+  if (await chrome.extension.isAllowedIncognitoAccess()) {
+    await chrome.proxy.settings.clear({ scope: 'incognito' });
+  }
+  await restoreWebRtcPolicy();
   await DiagnosticLog.add('info', 'proxy', 'Proxy settings cleared');
+}
+
+const WEBRTC_POLICY_VPN = 'disable_non_proxied_udp';
+let webRtcPolicyBeforeVpn = null;
+
+async function applyWebRtcPolicyForVpn() {
+  if (!chrome.privacy?.network?.webRTCIPHandlingPolicy) return;
+  try {
+    if (webRtcPolicyBeforeVpn === null) {
+      webRtcPolicyBeforeVpn = await chrome.privacy.network.webRTCIPHandlingPolicy.get({});
+    }
+    await chrome.privacy.network.webRTCIPHandlingPolicy.set({
+      value: WEBRTC_POLICY_VPN,
+      scope: 'regular'
+    });
+    if (await chrome.extension.isAllowedIncognitoAccess()) {
+      await chrome.privacy.network.webRTCIPHandlingPolicy.set({
+        value: WEBRTC_POLICY_VPN,
+        scope: 'incognito'
+      });
+    }
+  } catch (e) {
+    await DiagnosticLog.add('warn', 'privacy', 'WebRTC policy not applied', { error: e.message });
+  }
+}
+
+async function restoreWebRtcPolicy() {
+  if (!chrome.privacy?.network?.webRTCIPHandlingPolicy || webRtcPolicyBeforeVpn === null) return;
+  try {
+    const prev = webRtcPolicyBeforeVpn.value || 'default';
+    await chrome.privacy.network.webRTCIPHandlingPolicy.set({
+      value: prev,
+      scope: 'regular'
+    });
+    if (await chrome.extension.isAllowedIncognitoAccess()) {
+      await chrome.privacy.network.webRTCIPHandlingPolicy.set({
+        value: prev,
+        scope: 'incognito'
+      });
+    }
+  } catch (_) { /* ignore */ }
+  webRtcPolicyBeforeVpn = null;
 }
 
 async function loadSettings() {
@@ -576,7 +639,9 @@ async function loadSettings() {
     vpnState.routingPresets,
     vpnState.routingRulesCustom
   );
-  if (data.socksPort) vpnState.socksPort = data.socksPort;
+  if (data.socksPort) {
+    vpnState.socksPort = BrowsValidators.sanitizeSocksPort(data.socksPort);
+  }
   if (data.autoReconnect !== undefined) vpnState.autoReconnect = data.autoReconnect;
   if (data.debugLogging !== undefined) vpnState.debugLogging = data.debugLogging;
 
@@ -705,6 +770,8 @@ async function enableVPN(options = {}) {
       throw new Error('Ошибка списка исключений: ' + detail);
     }
 
+    await applyWebRtcPolicyForVpn();
+
     for (const domain of vpnState.domains) {
       const host = BrowsValidators.sampleHostForPattern(domain);
       const route = BrowsValidators.pacRouteForHost(
@@ -768,7 +835,11 @@ async function getDiagnostics(testHost = '') {
   const lines = [];
   const push = (title, body) => {
     lines.push(`=== ${title} ===`);
-    lines.push(typeof body === 'string' ? body : JSON.stringify(body, null, 2));
+    const safe =
+      typeof body === 'string'
+        ? body
+        : JSON.stringify(BrowsValidators.redactDiagnosticData(body), null, 2);
+    lines.push(safe);
     lines.push('');
   };
 
@@ -776,11 +847,12 @@ async function getDiagnostics(testHost = '') {
     enabled: vpnState.enabled,
     mode: vpnState.mode,
     socksPort: vpnState.socksPort,
-    domains: vpnState.domains,
-    excludeDomains: vpnState.excludeDomains,
+    domainCount: vpnState.domains.length,
+    excludeCount: vpnState.excludeDomains.length,
+    routingRuleCount: vpnState.routingRules.length,
+    vlessConfig: BrowsValidators.redactVlessUrl(vpnState.vlessConfig),
     status: vpnState.connectionStatus,
     lastError: vpnState.lastError,
-    lastHealth: vpnState.lastHealth,
     recoveryAttemptCount
   });
 
@@ -792,7 +864,10 @@ async function getDiagnostics(testHost = '') {
 
   try {
     const proxySettings = await chrome.proxy.settings.get({ incognito: false });
-    push('Настройки proxy Chrome', proxySettings);
+    push('Настройки proxy Chrome', {
+      levelOfControl: proxySettings.levelOfControl,
+      mode: proxySettings.value?.mode
+    });
   } catch (e) {
     push('Настройки proxy Chrome', e.message);
   }
@@ -822,9 +897,9 @@ async function getDiagnostics(testHost = '') {
     const logs = await nativeMessaging.getLogs();
     const data = logs.payload?.data || {};
     push('Xray запущен', data.xray_running);
-    push('Xray access.log (хвост)', data.access_log || '(нет)');
-    push('Xray error.log (хвост)', data.error_log || '(нет)');
-    push('Go app.log (хвост)', data.app_log || '(нет)');
+    push('Xray error.log (хвост, redacted)', data.error_log || '(нет)');
+    push('Go app.log (хвост, redacted)', data.app_log || '(нет)');
+    push('Примечание', 'access.log и полный PAC намеренно скрыты. Включите debug для подробных логов.');
   } catch (e) {
     push('Логи Go-сервиса', `ОШИБКА: ${e.message}`);
   }
@@ -832,13 +907,12 @@ async function getDiagnostics(testHost = '') {
   const stored = await chrome.storage.local.get(['diagnosticLogs']);
   const extLogs = (stored.diagnosticLogs || [])
     .slice(-80)
-    .map((e) => `${e.time} [${e.level}] ${e.component}: ${e.message}${e.data ? ' ' + JSON.stringify(e.data) : ''}`)
+    .map((e) => {
+      const dataStr = e.data ? ' ' + JSON.stringify(BrowsValidators.redactDiagnosticData(e.data)) : '';
+      return `${e.time} [${e.level}] ${e.component}: ${e.message}${dataStr}`;
+    })
     .join('\n');
   push('Лог расширения (последние 80)', extLogs || '(пусто)');
-
-  if (vpnState.lastPacScript) {
-    push('Текущий PAC-скрипт', vpnState.lastPacScript);
-  }
 
   return { text: lines.join('\n') };
 }
@@ -1177,7 +1251,23 @@ chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
   loadSettings().then(() => updateActionBadge(host));
 });
 
-chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  const privilegedActions = new Set([
+    'enableVPN',
+    'disableVPN',
+    'updateSettings',
+    'getDiagnostics',
+    'setDebugLogging',
+    'clearDiagnosticLogs',
+    'findFreePort',
+    'runPreflight',
+    'setActiveProfile'
+  ]);
+  if (privilegedActions.has(request.action) && sender.id !== chrome.runtime.id) {
+    sendResponse({ success: false, error: 'Forbidden' });
+    return false;
+  }
+
   if (request.action === 'completeOnboarding') {
     chrome.storage.local.set({ onboardingComplete: true }).then(async () => {
       await DiagnosticLog.add('info', 'onboarding', request.skipped ? 'Onboarding skipped' : 'Onboarding completed');
@@ -1319,42 +1409,38 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 
   if (request.action === 'updateSettings') {
     loadSettings().then(async () => {
-      if (request.vlessConfig) {
-        vpnState.vlessConfig = request.vlessConfig;
-        if (vpnState.activeProfileId) {
-          const idx = vpnState.profiles.findIndex((p) => p.id === vpnState.activeProfileId);
-          if (idx >= 0) {
-            vpnState.profiles[idx] = {
-              ...vpnState.profiles[idx],
-              vless_url: request.vlessConfig
-            };
-          }
-        }
+      const patch = {
+        vlessConfig: request.vlessConfig,
+        profiles: request.profiles,
+        activeProfileId: request.activeProfileId,
+        mode: request.mode,
+        domains: request.domains,
+        excludeDomains: request.excludeDomains,
+        routingPresets: request.routingPresets,
+        routingRulesCustom: request.routingRulesCustom,
+        socksPort: request.socksPort
+      };
+      Object.keys(patch).forEach((k) => {
+        if (patch[k] === undefined) delete patch[k];
+      });
+
+      const result = BrowsValidators.applySettingsUpdate(vpnState, patch);
+      if (!result.ok) {
+        sendResponse({ success: false, error: result.errors.join('; ') });
+        return;
       }
-      if (request.profiles) {
-        vpnState.profiles = request.profiles.map((p) => BrowsValidators.normalizeProfile(p)).filter(Boolean);
-      }
-      if (request.activeProfileId !== undefined) {
-        vpnState.activeProfileId = request.activeProfileId;
-        vpnState.vlessConfig = BrowsValidators.activeProfileVlessUrl(
-          vpnState.profiles,
-          vpnState.activeProfileId
-        ) || vpnState.vlessConfig;
-      }
-      if (request.mode) vpnState.mode = request.mode;
-      if (request.domains) vpnState.domains = request.domains;
-      if (request.excludeDomains !== undefined) vpnState.excludeDomains = request.excludeDomains;
-      if (request.routingPresets) vpnState.routingPresets = request.routingPresets;
-      if (request.routingRulesCustom) {
-        vpnState.routingRulesCustom = request.routingRulesCustom
-          .map((r) => BrowsValidators.normalizeRoutingRule(r))
-          .filter(Boolean);
-      }
-      vpnState.routingRules = BrowsValidators.buildRoutingRules(
-        vpnState.routingPresets,
-        vpnState.routingRulesCustom
-      );
-      if (request.socksPort) vpnState.socksPort = request.socksPort;
+
+      const s = result.state;
+      vpnState.vlessConfig = s.vlessConfig;
+      vpnState.profiles = s.profiles;
+      vpnState.activeProfileId = s.activeProfileId;
+      vpnState.mode = s.mode;
+      vpnState.domains = s.domains;
+      vpnState.excludeDomains = s.excludeDomains;
+      vpnState.routingPresets = s.routingPresets;
+      vpnState.routingRulesCustom = s.routingRulesCustom;
+      vpnState.routingRules = s.routingRules;
+      vpnState.socksPort = s.socksPort;
 
       await chrome.storage.local.set({
         vlessConfig: vpnState.vlessConfig,
@@ -1370,7 +1456,7 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 
       await reapplyProxyIfEnabled();
       await updateContextMenuVisibility();
-      sendResponse({ success: true });
+      sendResponse({ success: true, warnings: result.warnings });
     });
     return true;
   }

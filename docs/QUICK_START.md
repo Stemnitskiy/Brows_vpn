@@ -1,8 +1,8 @@
 # Brows VPN — Quick Start (для разработчика)
 
 > **Обновлено:** 2026-05-22  
-> **Статус:** проект в разработке (~40% MVP)  
-> **План:** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)
+> **Статус:** v2.2.0 — рабочий MVP + hardening  
+> **План:** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) · [SECURITY.md](./SECURITY.md)
 
 ---
 
@@ -17,7 +17,7 @@ Brows VPN — расширение Chromium + локальный Go-сервис
 ## Архитектура (кратко)
 
 ```
-Extension (PAC) → SOCKS5 127.0.0.1:1080 → Xray → VLESS Server
+Extension (PAC) → SOCKS5 127.0.0.1:10808 → Xray → VLESS Server
        ↕ Native Messaging
    Go proxy-service
 ```

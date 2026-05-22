@@ -12,6 +12,7 @@
     "watch:prod": "NODE_ENV=production BROWSER=chrome webpack --watch --progress --config webpack.config.js",
     "release": "web-ext build -o --source-dir=./dist/chrome/prod --artifacts-dir=./releases/chrome",
     "lint": "eslint --ext=.js ./src/",
+    "lint:root": "eslint --no-eslintrc --env es2021,browser,webextensions --ext=.js background.js validators.js options.js popup.js diagnostics.js onboarding.js theme.js",
     "stylelint": "stylelint ./src/",
     "lint:fix": "eslint --fix --ext=.js ./src/"
   },

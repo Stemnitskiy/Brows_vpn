@@ -2,6 +2,206 @@
 
 const BrowsValidators = {
   WINDOWS_EXCLUDED_RANGES: [[1068, 1167]],
+  OPERATION_MODES: ['selective', 'global', 'global_exclude', 'disabled'],
+
+  validateOperationMode(mode) {
+    return this.OPERATION_MODES.includes(mode);
+  },
+
+  sanitizeSocksPort(port, fallback = 10808) {
+    const r = this.validateSocksPort(port);
+    if (r.ok) return r.port;
+    const fb = this.validateSocksPort(fallback);
+    return fb.ok ? fb.port : 10808;
+  },
+
+  redactVlessUrl(url) {
+    if (!url || !String(url).trim()) return '(не задан)';
+    try {
+      const u = new URL(String(url).trim());
+      const port = u.port || (u.protocol === 'vless:' ? '443' : '');
+      return `vless://***@${u.hostname || '?'}${port ? ':' + port : ''}***`;
+    } catch {
+      return 'vless://***';
+    }
+  },
+
+  redactUrl(url) {
+    if (!url || typeof url !== 'string') return url;
+    try {
+      const u = new URL(url);
+      return `${u.protocol}//${u.hostname}${u.pathname || '/'}`;
+    } catch {
+      return '[url]';
+    }
+  },
+
+  redactDiagnosticData(data) {
+    if (data == null) return data;
+    if (typeof data === 'string') {
+      if (data.startsWith('vless://')) return this.redactVlessUrl(data);
+      if (data.startsWith('http://') || data.startsWith('https://')) return this.redactUrl(data);
+      return data;
+    }
+    if (Array.isArray(data)) return data.map((v) => this.redactDiagnosticData(v));
+    if (typeof data === 'object') {
+      const out = {};
+      for (const [k, v] of Object.entries(data)) {
+        if (k === 'vless_url' || k === 'vlessConfig' || k === 'url') {
+          out[k] = typeof v === 'string' && v.startsWith('vless://') ? this.redactVlessUrl(v) : this.redactUrl(v);
+        } else if (k === 'pacPreview' || k === 'pacScript' || k === 'lastPacScript') {
+          out[k] = '[redacted]';
+        } else {
+          out[k] = this.redactDiagnosticData(v);
+        }
+      }
+      return out;
+    }
+    return data;
+  },
+
+  /**
+   * Validates and merges a settings patch (used by background service worker).
+   * Returns { ok, errors, warnings, state } where state is the merged vpn fields.
+   */
+  applySettingsUpdate(current, patch) {
+    const errors = [];
+    const warnings = [];
+    const state = {
+      vlessConfig: current.vlessConfig,
+      profiles: Array.isArray(current.profiles) ? [...current.profiles] : [],
+      activeProfileId: current.activeProfileId,
+      mode: current.mode || 'selective',
+      domains: Array.isArray(current.domains) ? [...current.domains] : [],
+      excludeDomains: Array.isArray(current.excludeDomains) ? [...current.excludeDomains] : [],
+      routingPresets:
+        current.routingPresets && typeof current.routingPresets === 'object'
+          ? { ...current.routingPresets }
+          : {},
+      routingRulesCustom: Array.isArray(current.routingRulesCustom)
+        ? [...current.routingRulesCustom]
+        : [],
+      socksPort: this.sanitizeSocksPort(current.socksPort)
+    };
+
+    if (patch.vlessConfig !== undefined) {
+      const url = String(patch.vlessConfig || '').trim();
+      if (url) {
+        const v = this.validateVlessUrl(url);
+        if (!v.ok) errors.push(...v.errors);
+        else {
+          state.vlessConfig = url;
+          warnings.push(...v.warnings);
+        }
+      } else {
+        state.vlessConfig = '';
+      }
+    }
+
+    if (patch.profiles !== undefined) {
+      if (!Array.isArray(patch.profiles)) {
+        errors.push('profiles должен быть массивом');
+      } else {
+        const list = patch.profiles.map((p) => this.normalizeProfile(p)).filter(Boolean);
+        for (const p of list) {
+          if (p.vless_url) {
+            const v = this.validateVlessUrl(p.vless_url);
+            if (!v.ok) errors.push(`Профиль «${p.name}»: ${v.errors.join('; ')}`);
+            else warnings.push(...v.warnings);
+          }
+        }
+        if (errors.length === 0) state.profiles = list;
+      }
+    }
+
+    if (patch.activeProfileId !== undefined) {
+      state.activeProfileId = patch.activeProfileId;
+      const url = this.activeProfileVlessUrl(state.profiles, state.activeProfileId);
+      if (url) state.vlessConfig = url;
+    }
+
+    if (patch.mode !== undefined) {
+      if (!this.validateOperationMode(patch.mode)) {
+        errors.push(`Неизвестный режим: ${patch.mode}`);
+      } else {
+        state.mode = patch.mode;
+      }
+    }
+
+    if (patch.domains !== undefined) {
+      if (Array.isArray(patch.domains)) {
+        const domains = [];
+        for (const d of patch.domains) {
+          const r = this.normalizeDomain(String(d));
+          if (r.ok) domains.push(r.domain);
+          else errors.push(r.error);
+        }
+        state.domains = domains;
+      } else {
+        errors.push('domains должен быть массивом');
+      }
+    }
+
+    if (patch.excludeDomains !== undefined) {
+      if (Array.isArray(patch.excludeDomains)) {
+        const domains = [];
+        for (const d of patch.excludeDomains) {
+          const r = this.normalizeDomain(String(d));
+          if (r.ok) domains.push(r.domain);
+          else errors.push(r.error);
+        }
+        state.excludeDomains = domains;
+      } else {
+        errors.push('excludeDomains должен быть массивом');
+      }
+    }
+
+    if (patch.routingPresets !== undefined) {
+      if (patch.routingPresets && typeof patch.routingPresets === 'object') {
+        state.routingPresets = {
+          tld_ru: !!patch.routingPresets.tld_ru,
+          tld_local: !!patch.routingPresets.tld_local,
+          localhost: !!patch.routingPresets.localhost
+        };
+      } else {
+        errors.push('routingPresets должен быть объектом');
+      }
+    }
+
+    if (patch.routingRulesCustom !== undefined) {
+      if (Array.isArray(patch.routingRulesCustom)) {
+        state.routingRulesCustom = patch.routingRulesCustom
+          .map((r) => this.normalizeRoutingRule(r))
+          .filter(Boolean);
+      } else {
+        errors.push('routingRulesCustom должен быть массивом');
+      }
+    }
+
+    if (patch.socksPort !== undefined) {
+      const portCheck = this.validateSocksPort(patch.socksPort);
+      if (!portCheck.ok) errors.push(...portCheck.errors);
+      else {
+        state.socksPort = portCheck.port;
+        warnings.push(...portCheck.warnings);
+      }
+    }
+
+    state.routingRules = this.buildRoutingRules(state.routingPresets, state.routingRulesCustom);
+
+    if (state.activeProfileId && state.profiles.length) {
+      if (!state.profiles.some((p) => p.id === state.activeProfileId)) {
+        errors.push('activeProfileId не найден среди профилей');
+      }
+    }
+
+    return {
+      ok: errors.length === 0,
+      errors,
+      warnings: [...new Set(warnings)],
+      state
+    };
+  },
 
   validateVlessUrl(url) {
     const errors = [];
@@ -124,9 +324,28 @@ const BrowsValidators = {
   },
 
   validateSocksPort(port) {
-    const n = parseInt(port, 10);
     const errors = [];
     const warnings = [];
+    let n;
+
+    if (typeof port === 'number') {
+      if (!Number.isInteger(port)) {
+        errors.push('Порт должен быть целым числом');
+        return { ok: false, errors, warnings, port: 10808 };
+      }
+      n = port;
+    } else if (typeof port === 'string') {
+      const trimmed = port.trim();
+      if (!/^\d+$/.test(trimmed)) {
+        errors.push('Порт должен быть целым числом');
+        return { ok: false, errors, warnings, port: 10808 };
+      }
+      n = parseInt(trimmed, 10);
+    } else {
+      errors.push('Порт должен быть целым числом');
+      return { ok: false, errors, warnings, port: 10808 };
+    }
+
     if (Number.isNaN(n) || n < 1024 || n > 65535) {
       errors.push('Порт должен быть от 1024 до 65535');
     }
@@ -241,7 +460,8 @@ const BrowsValidators = {
 
   pacRouteForHost(host, mode, domains, socksPort, excludeDomains = [], routingRules = []) {
     host = host.toLowerCase().replace(/\.$/, '');
-    const proxy = `SOCKS5 127.0.0.1:${socksPort}`;
+    const port = this.sanitizeSocksPort(socksPort);
+    const proxy = `SOCKS5 127.0.0.1:${port}`;
 
     const ruleRoute = this.routeFromRules(host, routingRules, proxy);
     if (ruleRoute !== null) return ruleRoute;
@@ -260,7 +480,8 @@ const BrowsValidators = {
   },
 
   generatePACScript(mode, domains, socksPort, excludeDomains = [], routingRules = []) {
-    const proxyAddress = `SOCKS5 127.0.0.1:${socksPort}`;
+    const port = this.sanitizeSocksPort(socksPort);
+    const proxyAddress = `SOCKS5 127.0.0.1:${port}`;
     const rulesJSON = JSON.stringify(
       (routingRules || []).map((r) => ({ pattern: r.pattern, action: r.action }))
     );
@@ -424,17 +645,25 @@ const BrowsValidators = {
 
   SETTINGS_EXPORT_VERSION: 1,
 
-  buildSettingsExport(stored) {
+  buildSettingsExport(stored, options = {}) {
+    const includeSecrets = options.includeSecrets !== false;
     const migrated = this.migrateProfilesFromLegacy(
       stored?.profiles,
       stored?.vlessConfig,
       stored?.activeProfileId
     );
-    const port = parseInt(stored?.socksPort, 10);
+    const port = this.sanitizeSocksPort(stored?.socksPort);
+    const profiles = includeSecrets
+      ? migrated.profiles
+      : migrated.profiles.map((p) => ({
+          ...p,
+          vless_url: p.vless_url ? '' : ''
+        }));
     return {
       version: this.SETTINGS_EXPORT_VERSION,
       exportedAt: new Date().toISOString(),
       app: 'Brows VPN',
+      secretsIncluded: includeSecrets,
       settings: {
         operationMode: stored?.operationMode || 'selective',
         domainList: Array.isArray(stored?.domainList) ? stored.domainList : [],
@@ -446,12 +675,13 @@ const BrowsValidators = {
         routingRulesCustom: Array.isArray(stored?.routingRulesCustom)
           ? stored.routingRulesCustom.map((r) => this.normalizeRoutingRule(r)).filter(Boolean)
           : [],
-        socksPort: Number.isNaN(port) ? 10808 : port,
+        socksPort: port,
         logLevel: stored?.logLevel || 'info',
         autoReconnect: stored?.autoReconnect !== false,
         theme: ['light', 'dark', 'system'].includes(stored?.theme) ? stored.theme : 'system',
-        profiles: migrated.profiles,
-        activeProfileId: migrated.activeProfileId
+        profiles,
+        activeProfileId: migrated.activeProfileId,
+        vlessConfig: includeSecrets ? this.activeProfileVlessUrl(migrated.profiles, migrated.activeProfileId) : ''
       }
     };
   },

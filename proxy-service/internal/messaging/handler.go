@@ -15,23 +15,29 @@ import (
 
 // VPNHandler handles native messaging commands and controls Xray.
 type VPNHandler struct {
-	logger    *logging.Logger
-	xray      *xray.XrayController
-	mu        sync.Mutex
-	vlessURL  string
-	socksPort int
-	enabled   bool
+	logger       *logging.Logger
+	xray         *xray.XrayController
+	origin       *OriginGate
+	mu           sync.Mutex
+	vlessURL     string
+	socksPort    int
+	enabled      bool
 }
 
 // NewVPNHandler creates a handler wired to Xray.
-func NewVPNHandler(logger *logging.Logger) *VPNHandler {
+func NewVPNHandler(logger *logging.Logger, callerOrigin string) *VPNHandler {
 	controller := xray.NewXrayController()
 	if logger != nil {
 		controller.SetOutputWriters(logger.Logger.Out, logger.Logger.Out)
 	}
+	gate := NewOriginGate(callerOrigin)
+	if logger != nil && gate.CallerOrigin() != "" {
+		logger.Infof("Native messaging caller: %s", gate.CallerOrigin())
+	}
 	return &VPNHandler{
 		logger:    logger,
 		xray:      controller,
+		origin:    gate,
 		socksPort: 10808,
 	}
 }
@@ -47,6 +53,10 @@ func (h *VPNHandler) HandleMessage(msg Message) (Message, error) {
 }
 
 func (h *VPNHandler) handleCommand(msg Message) (Message, error) {
+	if h.origin != nil && !h.origin.Allow() {
+		return h.withMessageID(msg, h.errorResponse("Access denied for extension origin")), nil
+	}
+
 	command, ok := msg.Payload["command"].(string)
 	if !ok {
 		return h.withMessageID(msg, h.errorResponse("Missing command in payload")), nil
@@ -128,7 +138,10 @@ func (h *VPNHandler) handleEnableVPN(msg Message) (Message, error) {
 
 	binaryPath, err := xray.ResolveBinaryPath()
 	if err != nil {
-		return h.withMessageID(msg, h.errorResponse(err.Error())), nil
+		return h.withMessageID(msg, h.errorResponse("Xray binary unavailable")), nil
+	}
+	if err := xray.VerifyBinaryIntegrity(binaryPath); err != nil {
+		return h.withMessageID(msg, h.errorResponse("Xray integrity check failed")), nil
 	}
 
 	workDir, err := xray.ResolveWorkDir()
@@ -186,6 +199,7 @@ func (h *VPNHandler) handleDisableVPN(msg Message) (Message, error) {
 	if err := h.xray.Stop(); err != nil {
 		return h.withMessageID(msg, h.errorResponse("Failed to stop Xray: "+err.Error())), nil
 	}
+	_ = h.xray.RemoveConfigFile()
 
 	h.enabled = false
 	h.vlessURL = ""
@@ -328,7 +342,6 @@ func (h *VPNHandler) handleGetLogs(msg Message) (Message, error) {
 	}
 
 	appLog := filepath.Join(exeDir, "logs", "app.log")
-	accessLog := filepath.Join(workDir, "access.log")
 	errorLog := filepath.Join(workDir, "error.log")
 
 	read := func(path string) string {
@@ -340,9 +353,8 @@ func (h *VPNHandler) handleGetLogs(msg Message) (Message, error) {
 	}
 
 	return h.withMessageID(msg, h.successResponse(map[string]interface{}{
-		"app_log":    read(appLog),
-		"access_log": read(accessLog),
-		"error_log":  read(errorLog),
+		"app_log":      redactLogText(read(appLog)),
+		"error_log":    redactLogText(read(errorLog)),
 		"xray_running": h.xray.IsRunning(),
 	})), nil
 }

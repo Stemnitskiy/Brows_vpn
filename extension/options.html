@@ -19,9 +19,12 @@
         </div>
         <div>
           <h1>Brows VPN</h1>
-          <p class="subtitle">Настройки подключения и маршрутизации</p>
-          <p class="header-actions">
-            <button type="button" class="btn btn-ghost btn-sm" id="restartOnboardingBtn">Пройти настройку снова</button>
+          <p class="subtitle">Серверы и маршрутизация</p>
+          <p class="header-actions toolbar-actions">
+            <button type="button" class="btn btn-ghost btn-sm" id="openConnectionBtn">Подключение</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="openImportExportBtn">Импорт / экспорт</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="openDiagnosticsBtn">Диагностика</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="restartOnboardingBtn">Мастер</button>
           </p>
         </div>
       </div>
@@ -30,44 +33,14 @@
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <main class="sections">
-      <!-- VLESS -->
-      <section class="card">
-        <div class="card-head">
-          <span class="card-icon card-icon--blue" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-          </span>
-          <div>
-            <h2 class="card-title">Конфигурация VLESS</h2>
-            <p class="card-desc">Ссылка на сервер из панели провайдера</p>
-          </div>
-        </div>
-        <div class="profile-block">
-          <div class="profile-block-head">
-            <span class="field-label">Профили серверов</span>
-            <button type="button" class="btn btn-ghost btn-sm" id="addProfileBtn">+ Новый</button>
-          </div>
-          <ul class="profile-list" id="profileList" aria-label="Список профилей"></ul>
-          <p class="field-hint">Активный профиль используется при включении VPN. Поле ниже — его VLESS URL.</p>
-        </div>
-        <div class="field">
-          <label for="vlessConfig">VLESS URL</label>
-          <textarea id="vlessConfig" class="input input-mono" rows="4" placeholder="vless://uuid@host:443?type=grpc&security=reality&pbk=...&sni=..."></textarea>
-        </div>
-        <div class="btn-row">
-          <button type="button" class="btn btn-primary" id="saveConfig">Сохранить</button>
-          <button type="button" class="btn btn-secondary" id="validateConfig">Проверить формат</button>
-        </div>
-      </section>
-
-      <!-- Mode -->
-      <section class="card">
+      <section class="card" id="sectionMode">
         <div class="card-head">
           <span class="card-icon card-icon--green" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
           </span>
           <div>
             <h2 class="card-title">Режим работы</h2>
-            <p class="card-desc">Какой трафик направлять через VPN</p>
+            <p class="card-desc">Определяет, какие блоки ниже отображаются</p>
           </div>
         </div>
         <div class="mode-cards" role="radiogroup" aria-label="Режим VPN">
@@ -91,7 +64,7 @@
             <input type="radio" name="operationMode" value="global_exclude">
             <span class="mode-card-body">
               <span class="mode-card-title">Глобальный с исключениями</span>
-              <span class="mode-card-desc">Весь трафик, кроме списка ниже</span>
+              <span class="mode-card-desc">Весь трафик, кроме списка исключений</span>
             </span>
             <span class="mode-card-check" aria-hidden="true"></span>
           </label>
@@ -109,15 +82,34 @@
         </div>
       </section>
 
-      <!-- Domains -->
-      <section class="card">
+      <section class="card" id="sectionProfiles">
+        <div class="card-head">
+          <span class="card-icon card-icon--blue" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          </span>
+          <div>
+            <h2 class="card-title">Серверы VLESS</h2>
+            <p class="card-desc">Активный профиль используется при включении VPN</p>
+          </div>
+        </div>
+        <div class="profile-block">
+          <div class="profile-block-head">
+            <span class="field-label">Профили</span>
+            <button type="button" class="btn btn-primary btn-sm" id="addProfileBtn">+ Новый</button>
+          </div>
+          <ul class="profile-list" id="profileList" aria-label="Список профилей"></ul>
+          <p class="field-hint">Выберите активный профиль или создайте новый через «+ Новый»</p>
+        </div>
+      </section>
+
+      <section class="card section-mode" id="sectionWhitelist" data-modes="selective">
         <div class="card-head">
           <span class="card-icon card-icon--blue" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
           </span>
           <div>
             <h2 class="card-title">Белый список доменов</h2>
-            <p class="card-desc">По одному домену на строку, без https://</p>
+            <p class="card-desc">Только для режима «Выборочный»</p>
           </div>
         </div>
         <div class="field">
@@ -131,15 +123,14 @@
         </div>
       </section>
 
-      <!-- Smart routing -->
-      <section class="card">
+      <section class="card section-mode" id="sectionRouting" data-modes="selective global global_exclude">
         <div class="card-head">
           <span class="card-icon card-icon--green" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
           </span>
           <div>
             <h2 class="card-title">Умная маршрутизация</h2>
-            <p class="card-desc">Правила проверяются перед белым списком и исключениями</p>
+            <p class="card-desc">Правила с приоритетом над белым списком и исключениями</p>
           </div>
         </div>
         <fieldset class="preset-checks">
@@ -168,165 +159,170 @@
         </div>
       </section>
 
-      <!-- Exclude list -->
-      <section class="card">
+      <section class="card section-mode" id="sectionExclude" data-modes="global_exclude">
         <div class="card-head">
           <span class="card-icon card-icon--amber" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
           </span>
           <div>
             <h2 class="card-title">Список исключений</h2>
-            <p class="card-desc">Для режима «Глобальный с исключениями» — напрямую, без VPN</p>
+            <p class="card-desc">Только для режима «Глобальный с исключениями»</p>
           </div>
         </div>
         <div class="field">
           <label for="excludeList">Домены-исключения</label>
           <textarea id="excludeList" class="input input-mono" rows="5" placeholder="localhost&#10;127.0.0.1&#10;sberbank.ru&#10;*.local"></textarea>
-          <span class="field-hint">Пример: банк или локальные сайты, которые не должны идти через VPN</span>
+          <span class="field-hint">Эти домены идут напрямую, без VPN</span>
         </div>
         <div class="btn-row">
           <button type="button" class="btn btn-primary" id="saveExclude">Сохранить исключения</button>
           <button type="button" class="btn btn-ghost" id="clearExclude">Очистить</button>
         </div>
       </section>
-
-      <!-- Connection -->
-      <section class="card">
-        <div class="card-head">
-          <span class="card-icon card-icon--slate" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1" fill="currentColor"/><circle cx="6" cy="18" r="1" fill="currentColor"/></svg>
-          </span>
-          <div>
-            <h2 class="card-title">Подключение</h2>
-            <p class="card-desc">Локальный SOCKS5 и поведение при сбоях</p>
-          </div>
-        </div>
-        <div class="field">
-          <label for="socksPort">Порт SOCKS5</label>
-          <div class="inline-row">
-            <input type="number" id="socksPort" class="input" value="10808" min="1024" max="65535">
-            <button type="button" class="btn btn-secondary" id="autoPortBtn">Подобрать порт</button>
-          </div>
-          <span class="field-hint">Рекомендуется <code>10808</code> — порт 1080 блокируется Windows</span>
-        </div>
-        <div class="field">
-          <label for="logLevel">Уровень логов Go-сервиса</label>
-          <select id="logLevel" class="input">
-            <option value="debug">Отладка</option>
-            <option value="info" selected>Информация</option>
-            <option value="warning">Предупреждения</option>
-            <option value="error">Ошибки</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="themeMode">Тема интерфейса</label>
-          <select id="themeMode" class="input">
-            <option value="system">Как в системе</option>
-            <option value="light">Светлая</option>
-            <option value="dark">Тёмная</option>
-          </select>
-          <span class="field-hint">Popup, настройки и мастер установки</span>
-        </div>
-        <label class="switch-row">
-          <span class="switch">
-            <input type="checkbox" id="autoReconnect" checked>
-            <span class="switch-slider"></span>
-          </span>
-          <span class="switch-label">
-            <span class="switch-title">Автопереподключение</span>
-            <span class="switch-desc">Повторное включение VPN при сбое Xray или PAC</span>
-          </span>
-        </label>
-        <div class="btn-row">
-          <button type="button" class="btn btn-primary" id="saveSettings">Сохранить настройки</button>
-        </div>
-      </section>
-
-      <!-- Import / Export -->
-      <section class="card">
-        <div class="card-head">
-          <span class="card-icon card-icon--blue" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-          </span>
-          <div>
-            <h2 class="card-title">Импорт и экспорт</h2>
-            <p class="card-desc">Резервная копия настроек в JSON (локально, без облака)</p>
-          </div>
-        </div>
-
-        <div class="secret-warning" role="note">
-          <strong>Секреты в файле.</strong> Экспорт содержит VLESS URL и другие чувствительные данные.
-          Храните файл в безопасном месте и не публикуйте его.
-        </div>
-
-        <div class="btn-row btn-row--wrap">
-          <button type="button" class="btn btn-primary" id="exportSettingsBtn">Экспорт в буфер</button>
-          <button type="button" class="btn btn-secondary" id="downloadExportBtn">Скачать JSON</button>
-        </div>
-
-        <div class="field">
-          <label for="importJson">Импорт из JSON</label>
-          <textarea id="importJson" class="input input-mono" rows="6" placeholder='{"version":1,"app":"Brows VPN","settings":{...}}'></textarea>
-        </div>
-        <div class="btn-row btn-row--wrap">
-          <button type="button" class="btn btn-secondary" id="importFileBtn">Выбрать файл</button>
-          <button type="button" class="btn btn-primary" id="previewImportBtn">Предпросмотр</button>
-          <button type="button" class="btn btn-primary" id="applyImportBtn" disabled>Применить импорт</button>
-        </div>
-        <input type="file" id="importFile" accept=".json,application/json" hidden>
-
-        <div id="importPreview" class="import-preview" hidden></div>
-      </section>
-
-      <!-- Diagnostics -->
-      <section class="card card--diag">
-        <div class="card-head">
-          <span class="card-icon card-icon--amber" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          </span>
-          <div>
-            <h2 class="card-title">Диагностика</h2>
-            <p class="card-desc">Проверка маршрутизации и логов</p>
-          </div>
-        </div>
-
-        <label class="switch-row">
-          <span class="switch">
-            <input type="checkbox" id="debugLogging">
-            <span class="switch-slider"></span>
-          </span>
-          <span class="switch-label">
-            <span class="switch-title">Подробные логи</span>
-            <span class="switch-desc">Трассировка запросов в журнал расширения</span>
-          </span>
-        </label>
-
-        <div class="field">
-          <label for="testHost">Проверка PAC для хоста</label>
-          <div class="inline-row">
-            <input type="text" id="testHost" class="input" placeholder="2ip.ru">
-            <button type="button" class="btn btn-secondary" id="testPacBtn">Проверить</button>
-          </div>
-        </div>
-
-        <div id="pacTestResult" class="result-banner" hidden></div>
-
-        <div class="btn-row btn-row--wrap">
-          <button type="button" class="btn btn-primary" id="runPreflightBtn">
-            <span class="btn-label">Полная проверка</span>
-          </button>
-          <button type="button" class="btn btn-secondary" id="refreshLogsBtn">Обновить журнал</button>
-          <button type="button" class="btn btn-ghost" id="clearLogsBtn">Очистить</button>
-        </div>
-
-        <div class="field">
-          <label for="diagnosticLog">Журнал</label>
-          <textarea id="diagnosticLog" class="input input-log" readonly rows="14"></textarea>
-        </div>
-      </section>
     </main>
 
-    <footer class="page-footer">Brows VPN v2.0.0</footer>
+    <footer class="page-footer">Brows VPN v2.2.1</footer>
+  </div>
+
+  <!-- Profile modal -->
+  <div id="profileModal" class="modal" hidden aria-hidden="true">
+    <div class="modal-backdrop" data-close="profileModal"></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+      <h3 class="modal-title" id="profileModalTitle">Новый профиль</h3>
+      <div class="field">
+        <label for="profileModalName">Название</label>
+        <input type="text" id="profileModalName" class="input" placeholder="Например: Основной сервер" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="profileModalVless">VLESS URL</label>
+        <textarea id="profileModalVless" class="input input-mono" rows="5" placeholder="vless://uuid@host:443?type=grpc&security=reality&pbk=...&sni=..."></textarea>
+      </div>
+      <div id="profileModalError" class="modal-error" hidden></div>
+      <div class="btn-row btn-row--wrap">
+        <button type="button" class="btn btn-secondary" id="profileModalValidate">Проверить формат</button>
+        <button type="button" class="btn btn-primary" id="profileModalSave">Сохранить</button>
+        <button type="button" class="btn btn-ghost" id="profileModalCancel">Отмена</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connection modal -->
+  <div id="connectionModal" class="modal" hidden aria-hidden="true">
+    <div class="modal-backdrop" data-close="connectionModal"></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="connectionModalTitle">
+      <h3 class="modal-title" id="connectionModalTitle">Подключение и интерфейс</h3>
+      <div class="field">
+        <label for="socksPort">Порт SOCKS5</label>
+        <div class="inline-row">
+          <input type="number" id="socksPort" class="input" value="10808" min="1024" max="65535">
+          <button type="button" class="btn btn-secondary" id="autoPortBtn">Подобрать порт</button>
+        </div>
+        <span class="field-hint">Рекомендуется <code>10808</code> — порт 1080 блокируется Windows</span>
+      </div>
+      <div class="field">
+        <label for="logLevel">Уровень логов Go-сервиса</label>
+        <select id="logLevel" class="input">
+          <option value="debug">Отладка</option>
+          <option value="info" selected>Информация</option>
+          <option value="warning">Предупреждения</option>
+          <option value="error">Ошибки</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="themeMode">Тема интерфейса</label>
+        <select id="themeMode" class="input">
+          <option value="system">Как в системе</option>
+          <option value="light">Светлая</option>
+          <option value="dark">Тёмная</option>
+        </select>
+      </div>
+      <label class="switch-row">
+        <span class="switch">
+          <input type="checkbox" id="autoReconnect" checked>
+          <span class="switch-slider"></span>
+        </span>
+        <span class="switch-label">
+          <span class="switch-title">Автопереподключение</span>
+          <span class="switch-desc">Повторное включение VPN при сбое Xray или PAC</span>
+        </span>
+      </label>
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary" id="saveSettings">Сохранить</button>
+        <button type="button" class="btn btn-ghost" data-close="connectionModal">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import / export modal -->
+  <div id="importExportModal" class="modal" hidden aria-hidden="true">
+    <div class="modal-backdrop" data-close="importExportModal"></div>
+    <div class="modal-dialog modal-dialog--wide" role="dialog" aria-modal="true" aria-labelledby="importExportModalTitle">
+      <h3 class="modal-title" id="importExportModalTitle">Импорт и экспорт</h3>
+      <div class="secret-warning" role="note">
+        <strong>Секреты в файле.</strong> Экспорт может содержать VLESS URL. Храните файл в безопасном месте.
+      </div>
+      <div class="btn-row btn-row--wrap">
+        <button type="button" class="btn btn-primary" id="downloadExportBtn">Скачать JSON</button>
+        <button type="button" class="btn btn-secondary" id="downloadExportSafeBtn">Скачать без секретов</button>
+        <button type="button" class="btn btn-ghost" id="exportClipboardBtn">Копировать в буфер…</button>
+      </div>
+      <label class="preset-check export-secrets-check">
+        <input type="checkbox" id="exportIncludeSecrets">
+        <span>Включить VLESS URL при экспорте в буфер</span>
+      </label>
+      <div class="field">
+        <label for="importJson">Импорт из JSON</label>
+        <textarea id="importJson" class="input input-mono" rows="5" placeholder='{"version":1,"app":"Brows VPN",...}'></textarea>
+      </div>
+      <div class="btn-row btn-row--wrap">
+        <button type="button" class="btn btn-secondary" id="importFileBtn">Выбрать файл</button>
+        <button type="button" class="btn btn-primary" id="previewImportBtn">Предпросмотр</button>
+        <button type="button" class="btn btn-primary" id="applyImportBtn" disabled>Применить</button>
+      </div>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+      <div id="importPreview" class="import-preview" hidden></div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-ghost" data-close="importExportModal">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Diagnostics modal -->
+  <div id="diagnosticsModal" class="modal" hidden aria-hidden="true">
+    <div class="modal-backdrop" data-close="diagnosticsModal"></div>
+    <div class="modal-dialog modal-dialog--wide" role="dialog" aria-modal="true" aria-labelledby="diagnosticsModalTitle">
+      <h3 class="modal-title" id="diagnosticsModalTitle">Диагностика</h3>
+      <label class="switch-row">
+        <span class="switch">
+          <input type="checkbox" id="debugLogging">
+          <span class="switch-slider"></span>
+        </span>
+        <span class="switch-label">
+          <span class="switch-title">Подробные логи</span>
+          <span class="switch-desc">Трассировка запросов в журнал расширения</span>
+        </span>
+      </label>
+      <div class="field">
+        <label for="testHost">Проверка PAC для хоста</label>
+        <div class="inline-row">
+          <input type="text" id="testHost" class="input" placeholder="2ip.ru">
+          <button type="button" class="btn btn-secondary" id="testPacBtn">Проверить</button>
+        </div>
+      </div>
+      <div id="pacTestResult" class="result-banner" hidden></div>
+      <div class="btn-row btn-row--wrap">
+        <button type="button" class="btn btn-primary" id="runPreflightBtn">Полная проверка</button>
+        <button type="button" class="btn btn-secondary" id="refreshLogsBtn">Обновить журнал</button>
+        <button type="button" class="btn btn-ghost" id="clearLogsBtn">Очистить</button>
+      </div>
+      <div class="field">
+        <label for="diagnosticLog">Журнал</label>
+        <textarea id="diagnosticLog" class="input input-log" readonly rows="14"></textarea>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-ghost" data-close="diagnosticsModal">Закрыть</button>
+      </div>
+    </div>
   </div>
 
   <script src="validators.js"></script>

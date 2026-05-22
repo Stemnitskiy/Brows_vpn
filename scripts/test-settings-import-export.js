@@ -51,6 +51,22 @@ assert(valid.preview.domainCount === 2, 'preview domain count');
 assert(valid.settings.operationMode === 'selective', 'normalized mode');
 console.log('OK  valid import');
 
+console.log('\n=== applySettingsUpdate / PAC port hardening ===');
+const badPortPatch = BrowsValidators.applySettingsUpdate(
+  { mode: 'global', socksPort: 10808, domains: [], excludeDomains: [], routingPresets: {}, routingRulesCustom: [], profiles: [], activeProfileId: null, vlessConfig: '' },
+  { socksPort: '10808"; return "DIRECT"; //' }
+);
+assert(!badPortPatch.ok, 'reject malicious socksPort string');
+const pac = BrowsValidators.generatePACScript('global', [], '10808"; return "DIRECT"; //');
+assert(pac.includes('127.0.0.1:10808'), 'PAC uses sanitized default port for invalid input');
+console.log('OK  settings validation');
+
+console.log('\n=== export without secrets ===');
+const safeExport = BrowsValidators.buildSettingsExport(stored, { includeSecrets: false });
+assert(safeExport.secretsIncluded === false, 'secretsIncluded flag');
+assert(safeExport.settings.vlessConfig === '', 'no vless in safe export');
+console.log('OK  safe export');
+
 console.log('\n=== invalid import ===');
 const bad = BrowsValidators.parseSettingsImportText('{not json');
 assert(!bad.ok, 'reject bad json');

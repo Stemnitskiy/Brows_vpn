@@ -9,10 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const errorBox = document.getElementById('errorBox');
   const settingsBtn = document.getElementById('settingsBtn');
   const siteSection = document.getElementById('siteSection');
-  const currentSiteEl = document.getElementById('currentSite');
-  const siteStatusEl = document.getElementById('siteStatus');
   const addSiteBtn = document.getElementById('addSiteBtn');
-  const siteHintEl = document.getElementById('siteHint');
   const connInfo = document.getElementById('connInfo');
   const externalIpEl = document.getElementById('externalIp');
   const ipSpinner = document.getElementById('ipSpinner');
@@ -137,53 +134,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   function updateSiteSection(mode) {
     if (mode !== 'selective') {
       siteSection.classList.add('hidden');
-      if (mode === 'global') {
-        siteHintEl.textContent = 'В глобальном режиме все сайты уже через VPN';
-      } else if (mode === 'global_exclude') {
-        siteHintEl.textContent = 'Исключения настраиваются в разделе «Список исключений»';
-      } else {
-        siteHintEl.textContent = 'Смените режим в настройках на «Выборочный»';
-      }
       return;
     }
 
     siteSection.classList.remove('hidden');
-    siteHintEl.textContent = 'Домен попадёт в белый список (например 2ip.ru)';
 
     if (!currentTab?.domain) {
-      currentSiteEl.textContent = currentTab?.hostname || 'Страница недоступна';
-      currentSiteEl.classList.add('muted');
-      siteStatusEl.textContent = currentTab?.error || 'Откройте обычный http(s) сайт';
-      siteStatusEl.className = 'site-status';
       addSiteBtn.disabled = true;
       addSiteBtn.textContent = 'Добавить сайт';
       addSiteBtn.classList.remove('added');
       return;
     }
 
-    currentSiteEl.classList.remove('muted');
-    currentSiteEl.textContent = currentTab.domain;
-    if (currentTab.hostname !== currentTab.domain) {
-      currentSiteEl.textContent = `${currentTab.domain} (${currentTab.hostname})`;
-    }
-
-    if (currentTab.inList) {
-      siteStatusEl.textContent = currentTab.whitelisted ? 'В белом списке' : 'Через правило VPN';
-      siteStatusEl.className = 'site-status in-list';
+    if (currentTab.inList || currentTab.whitelisted) {
       addSiteBtn.disabled = true;
-      addSiteBtn.textContent = currentTab.whitelisted ? 'В списке' : 'Через VPN';
-      addSiteBtn.classList.add('added');
-    } else if (currentTab.whitelisted) {
-      siteStatusEl.textContent = 'Правило → напрямую';
-      siteStatusEl.className = 'site-status';
-      addSiteBtn.disabled = true;
-      addSiteBtn.textContent = 'В списке';
+      addSiteBtn.textContent = currentTab.whitelisted ? `${currentTab.domain} — в списке` : `${currentTab.domain} — через VPN`;
       addSiteBtn.classList.add('added');
     } else {
-      siteStatusEl.textContent = 'Не проксируется';
-      siteStatusEl.className = 'site-status';
       addSiteBtn.disabled = false;
-      addSiteBtn.textContent = 'Добавить сайт';
+      addSiteBtn.textContent = `Добавить ${currentTab.domain}`;
       addSiteBtn.classList.remove('added');
     }
   }
@@ -270,8 +239,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         modeHint.textContent = formatModeHint(lastMode, lastDomainCount, lastExcludeCount);
         updateSiteSection(lastMode);
         if (!result.alreadyListed) {
-          siteStatusEl.textContent = `Добавлено: ${result.domain}`;
-          siteStatusEl.className = 'site-status in-list';
+          addSiteBtn.textContent = `${result.domain} — в списке`;
+          addSiteBtn.classList.add('added');
+          addSiteBtn.disabled = true;
         }
       } else {
         showError(result?.error || 'Не удалось добавить сайт');
