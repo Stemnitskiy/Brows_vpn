@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Настройка Brows VPN</title>
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="options.css">
+  <link rel="stylesheet" href="onboarding.css">
+</head>
+<body>
+  <div class="page wizard-page">
+    <header class="page-header">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <path d="M12 2v10"/>
+            <path d="M8.5 5.5a6 6 0 1 0 7 0"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Настройка Brows VPN</h1>
+          <p class="subtitle">Пошаговый мастер первого запуска</p>
+        </div>
+      </div>
+    </header>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <div class="wizard-progress" id="wizardProgress" aria-hidden="true"></div>
+
+    <section class="card wizard-step active" data-step="0">
+      <h2>Добро пожаловать</h2>
+      <p class="step-lead">
+        Brows VPN состоит из расширения Chrome и локального Go-сервиса с Xray.
+        Мастер проведёт через сборку, регистрацию Native Messaging и первое подключение.
+      </p>
+      <ul>
+        <li>Нужны: Go, Chrome, VLESS URL от провайдера</li>
+        <li>Все команды выполняются локально на вашем ПК</li>
+        <li>После настройки мастер можно открыть снова из Settings</li>
+      </ul>
+      <div class="wizard-skip">
+        <button type="button" id="skipOnboarding">Пропустить мастер</button>
+      </div>
+    </section>
+
+    <section class="card wizard-step" data-step="1">
+      <h2>Шаг 1 — Сборка Go-сервиса</h2>
+      <p class="step-lead">Соберите <code>browsvpn-proxy.exe</code> в каталоге <code>proxy-service</code>.</p>
+      <ol>
+        <li>Откройте PowerShell в папке проекта</li>
+        <li>Выполните команды ниже</li>
+        <li>Убедитесь, что рядом лежит каталог <code>xray-core</code></li>
+      </ol>
+      <div class="code-block">
+        <pre id="cmdBuild">cd proxy-service
+go build -o browsvpn-proxy.exe ./cmd</pre>
+        <button type="button" class="btn btn-secondary copy-btn" data-target="cmdBuild">Копировать</button>
+      </div>
+    </section>
+
+    <section class="card wizard-step" data-step="2">
+      <h2>Шаг 2 — Регистрация Native Messaging</h2>
+      <p class="step-lead">Свяжите Chrome с локальным прокси-сервисом через реестр Windows.</p>
+      <ol>
+        <li>Откройте <code>proxy-service</code> в проводнике</li>
+        <li>Запустите <code>setup_registry.bat</code> (достаточно прав текущего пользователя)</li>
+        <li>Дождитесь сообщения об успешной регистрации</li>
+      </ol>
+      <div class="code-block">
+        <pre id="cmdRegistry">cd proxy-service
+.\setup_registry.bat</pre>
+        <button type="button" class="btn btn-secondary copy-btn" data-target="cmdRegistry">Копировать</button>
+      </div>
+    </section>
+
+    <section class="card wizard-step" data-step="3">
+      <h2>Шаг 3 — ID расширения</h2>
+      <p class="step-lead">Разрешите этому расширению обращаться к Native Messaging host.</p>
+      <p>ID этого расширения:</p>
+      <div class="ext-id-box">
+        <span class="ext-id-value" id="extensionId">…</span>
+        <button type="button" class="btn btn-secondary" id="copyExtensionId">Копировать ID</button>
+      </div>
+      <p class="field-hint">Выполните в PowerShell из <code>proxy-service</code> (подставится ID автоматически):</p>
+      <div class="code-block">
+        <pre id="cmdOrigins">powershell -File update_allowed_origins.ps1 -ExtensionId EXT_ID</pre>
+        <button type="button" class="btn btn-secondary copy-btn" data-target="cmdOrigins">Копировать</button>
+      </div>
+      <p class="field-hint">После этого полностью перезапустите Chrome.</p>
+    </section>
+
+    <section class="card wizard-step" data-step="4">
+      <h2>Шаг 4 — VLESS URL</h2>
+      <p class="step-lead">Вставьте ссылку на сервер из панели провайдера.</p>
+      <div class="field">
+        <label for="onboardingVless">VLESS URL</label>
+        <textarea id="onboardingVless" class="input input-mono" rows="4" placeholder="vless://uuid@host:443?..."></textarea>
+      </div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-secondary" id="validateVlessBtn">Проверить формат</button>
+        <button type="button" class="btn btn-primary" id="saveVlessBtn">Сохранить</button>
+      </div>
+      <div id="vlessStepResult" class="step-result" hidden></div>
+    </section>
+
+    <section class="card wizard-step" data-step="5">
+      <h2>Шаг 5 — Проверка и включение VPN</h2>
+      <p class="step-lead">Убедитесь, что Go-сервис отвечает, затем включите VPN.</p>
+      <div class="btn-row btn-row--wrap">
+        <button type="button" class="btn btn-secondary" id="runPreflightOnboarding">Preflight-проверка</button>
+        <button type="button" class="btn btn-primary" id="enableVpnOnboarding">Включить VPN</button>
+      </div>
+      <div id="testStepResult" class="step-result" hidden></div>
+    </section>
+
+    <section class="card wizard-step" data-step="6">
+      <h2>Готово</h2>
+      <p class="step-lead">Базовая настройка завершена. Управление VPN — через иконку расширения.</p>
+      <ul>
+        <li>Popup: включение/выключение, IP, профили</li>
+        <li>Settings: режимы, whitelist, правила, экспорт</li>
+        <li>Диагностика — в разделе Settings → Диагностика</li>
+      </ul>
+      <div class="btn-row">
+        <button type="button" class="btn btn-primary" id="finishOnboarding">Завершить</button>
+        <button type="button" class="btn btn-secondary" id="openSettingsBtn">Открыть настройки</button>
+      </div>
+    </section>
+
+    <nav class="wizard-nav">
+      <button type="button" class="btn btn-ghost" id="wizardBack" disabled>Назад</button>
+      <span class="btn-spacer"></span>
+      <button type="button" class="btn btn-primary" id="wizardNext">Далее</button>
+    </nav>
+
+    <footer class="page-footer">Brows VPN v2.0.0</footer>
+  </div>
+
+  <script src="validators.js"></script>
+  <script src="theme.js"></script>
+  <script src="onboarding.js"></script>
+</body>
+</html>

@@ -76,5 +76,60 @@ const multiCheck = BrowsValidators.verifyWhitelistRoutes(mode, parsed.domains, S
 assert(multiCheck.ok, 'all parsed domains must route via SOCKS');
 console.log('OK  3 domains parsed and verified');
 
+console.log('=== toWhitelistDomain ===');
+assert(BrowsValidators.toWhitelistDomain('www.2ip.ru').domain === '2ip.ru', 'www.2ip.ru → 2ip.ru');
+assert(BrowsValidators.toWhitelistDomain('sub.2ip.ru').domain === '2ip.ru', 'sub.2ip.ru → 2ip.ru');
+assert(BrowsValidators.hostnameFromUrl('chrome://settings') === null, 'chrome URL null');
+console.log('OK  apex domain extraction');
+
+console.log('\n=== global_exclude (blacklist) ===');
+const excludes = ['2ip.ru', 'localhost'];
+const modeEx = 'global_exclude';
+assert(
+  BrowsValidators.pacRouteForHost('2ip.ru', modeEx, [], SOCKS, excludes) === 'DIRECT',
+  'excluded 2ip.ru → DIRECT'
+);
+assert(
+  BrowsValidators.pacRouteForHost('google.com', modeEx, [], SOCKS, excludes).includes('SOCKS'),
+  'google.com → SOCKS'
+);
+const pacEx = BrowsValidators.generatePACScript(modeEx, [], SOCKS, excludes);
+assert(
+  BrowsValidators.evaluatePacRoute(pacEx, 'https://2ip.ru/', '2ip.ru') === 'DIRECT',
+  'PAC exclude 2ip.ru'
+);
+assert(
+  BrowsValidators.evaluatePacRoute(pacEx, 'https://yandex.ru/', 'yandex.ru').includes('SOCKS'),
+  'PAC yandex via SOCKS'
+);
+const exVerify = BrowsValidators.verifyExcludeRoutes(modeEx, excludes, SOCKS);
+assert(exVerify.ok, 'verifyExcludeRoutes');
+console.log('OK  global_exclude routing');
+
+console.log('\n=== Smart routing rules (priority over whitelist) ===');
+const rulesRuDirect = [{ pattern: '*.ru', action: 'direct' }];
+const rulesWithProxy = [
+  { pattern: '*.ru', action: 'direct' },
+  { pattern: 'google.com', action: 'proxy' }
+];
+assert(
+  BrowsValidators.pacRouteForHost('yandex.ru', mode, domains, SOCKS, [], rulesRuDirect) === 'DIRECT',
+  'rule *.ru → yandex.ru DIRECT even if in whitelist'
+);
+assert(
+  BrowsValidators.pacRouteForHost('google.com', mode, domains, SOCKS, [], rulesRuDirect) === PROXY,
+  'google.com still SOCKS via whitelist'
+);
+assert(
+  BrowsValidators.pacRouteForHost('google.com', mode, [], SOCKS, [], rulesWithProxy) === PROXY,
+  'custom rule google.com proxy without whitelist'
+);
+const pacRules = BrowsValidators.generatePACScript(mode, domains, SOCKS, [], rulesRuDirect);
+assert(
+  BrowsValidators.evaluatePacRoute(pacRules, 'https://yandex.ru/', 'yandex.ru') === 'DIRECT',
+  'PAC with *.ru rule'
+);
+console.log('OK  smart routing rules');
+
 console.log(`\n=== Result: ${passed} passed, ${failed} failed ===`);
 process.exit(failed > 0 ? 1 : 0);

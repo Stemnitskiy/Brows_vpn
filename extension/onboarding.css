@@ -1,0 +1,162 @@
+.wizard-page {
+  max-width: 640px;
+}
+
+.wizard-progress {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.wizard-dot {
+  flex: 1;
+  min-width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+  transition: background 0.2s;
+}
+
+.wizard-dot.active,
+.wizard-dot.done {
+  background: var(--accent);
+}
+
+.wizard-step {
+  display: none;
+}
+
+.wizard-step.active {
+  display: block;
+}
+
+.wizard-step h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.wizard-step .step-lead {
+  margin: 0 0 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.wizard-step ol,
+.wizard-step ul {
+  margin: 0 0 16px;
+  padding-left: 20px;
+  color: var(--text-subtle);
+  font-size: 14px;
+}
+
+.wizard-step li + li {
+  margin-top: 8px;
+}
+
+.code-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--code-block-bg);
+  color: var(--code-block-text);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+.code-block pre {
+  margin: 0;
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.code-block .btn {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+.ext-id-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--ext-id-border);
+  background: var(--ext-id-bg);
+}
+
+.ext-id-value {
+  flex: 1;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ext-id-text);
+  word-break: break-all;
+}
+
+.wizard-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.wizard-nav .btn-spacer {
+  flex: 1;
+}
+
+.step-result {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.step-result.success {
+  background: var(--success-soft);
+  border: 1px solid var(--success-border);
+  color: var(--success-text);
+}
+
+.step-result.error {
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-border);
+  color: var(--danger);
+}
+
+.step-result.info {
+  background: var(--step-info-bg);
+  border: 1px solid var(--step-info-border);
+  color: var(--step-info-text);
+}
+
+.wizard-skip {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.wizard-skip button {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.wizard-skip button:hover {
+  color: var(--accent);
+}

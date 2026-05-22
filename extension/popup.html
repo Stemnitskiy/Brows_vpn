@@ -4,210 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Brows VPN</title>
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      width: 320px;
-      margin: 0;
-      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-      background: #F8FAFC;
-      color: #1E293B;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    .popup {
-      padding: 16px 18px 14px;
-    }
-
-    .top-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
-    }
-
-    .brand {
-      font-size: 15px;
-      font-weight: 600;
-      letter-spacing: -0.02em;
-      color: #0F172A;
-    }
-
-    .settings-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 34px;
-      height: 34px;
-      padding: 0;
-      border: none;
-      border-radius: 10px;
-      background: transparent;
-      color: #64748B;
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-    }
-
-    .settings-btn:hover {
-      background: #E2E8F0;
-      color: #2563EB;
-    }
-
-    .settings-btn svg {
-      width: 20px;
-      height: 20px;
-    }
-
-    .toggle-section {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 8px 0 4px;
-    }
-
-    .power-toggle {
-      position: relative;
-      width: 112px;
-      height: 112px;
-      padding: 0;
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      outline: none;
-    }
-
-    .power-toggle:focus-visible .toggle-track {
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
-    }
-
-    .power-toggle:disabled {
-      cursor: wait;
-    }
-
-    .toggle-glow {
-      position: absolute;
-      inset: -8px;
-      border-radius: 50%;
-      opacity: 0;
-      background: radial-gradient(circle, rgba(16, 185, 129, 0.45) 0%, rgba(16, 185, 129, 0) 70%);
-      transition: opacity 0.4s ease;
-      pointer-events: none;
-    }
-
-    .power-toggle.on .toggle-glow {
-      opacity: 1;
-      animation: glow-pulse 2.4s ease-in-out infinite;
-    }
-
-    @keyframes glow-pulse {
-      0%, 100% { transform: scale(1); opacity: 0.85; }
-      50% { transform: scale(1.06); opacity: 1; }
-    }
-
-    .toggle-track {
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 112px;
-      height: 112px;
-      border-radius: 50%;
-      border: 4px solid #94A3B8;
-      background: #FFFFFF;
-      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
-      transition: border-color 0.35s ease, background 0.35s ease, box-shadow 0.35s ease;
-    }
-
-    .power-toggle.on .toggle-track {
-      border-color: #10B981;
-      background: linear-gradient(145deg, #ECFDF5 0%, #FFFFFF 60%);
-      box-shadow: 0 4px 20px rgba(16, 185, 129, 0.22);
-    }
-
-    .toggle-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: opacity 0.2s, transform 0.35s ease;
-    }
-
-    .toggle-icon svg {
-      width: 36px;
-      height: 36px;
-      stroke: #94A3B8;
-      transition: stroke 0.35s ease;
-    }
-
-    .power-toggle.on .toggle-icon svg {
-      stroke: #10B981;
-    }
-
-    .toggle-spinner {
-      position: absolute;
-      inset: -4px;
-      border-radius: 50%;
-      border: 3px solid #E2E8F0;
-      border-top-color: #2563EB;
-      opacity: 0;
-      transform: scale(0.92);
-      transition: opacity 0.2s;
-      pointer-events: none;
-    }
-
-    .power-toggle.loading .toggle-spinner {
-      opacity: 1;
-      animation: spin 0.75s linear infinite;
-    }
-
-    .power-toggle.loading .toggle-icon {
-      opacity: 0.35;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .status-label {
-      margin: 18px 0 4px;
-      font-size: 16px;
-      font-weight: 600;
-      color: #334155;
-      transition: color 0.3s;
-    }
-
-    .toggle-section:has(.power-toggle.on) .status-label {
-      color: #059669;
-    }
-
-    .mode-hint {
-      margin: 0;
-      font-size: 12px;
-      color: #64748B;
-      min-height: 18px;
-    }
-
-    .error-box {
-      display: none;
-      margin-top: 14px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      background: #FEF2F2;
-      border: 1px solid #FECACA;
-      color: #B91C1C;
-      font-size: 12px;
-      line-height: 1.45;
-    }
-
-    .footer {
-      margin-top: 16px;
-      text-align: center;
-      font-size: 11px;
-      color: #94A3B8;
-    }
-  </style>
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="popup">
@@ -238,11 +36,37 @@
       <p class="mode-hint" id="modeHint"></p>
     </div>
 
+    <div class="profile-row hidden" id="profileSection">
+      <label class="profile-label" for="profileSelect">Профиль сервера</label>
+      <select class="profile-select" id="profileSelect" aria-label="Выбор профиля VLESS"></select>
+    </div>
+
+    <div class="conn-info" id="connInfo">
+      <div class="conn-ip-row">
+        <span class="conn-ip-label">IP</span>
+        <span class="conn-ip-value" id="externalIp">—</span>
+        <span class="conn-ip-spinner hidden" id="ipSpinner" aria-hidden="true"></span>
+      </div>
+      <div class="conn-chips" id="connChips">
+        <span class="conn-chip off" id="xrayChip">Xray —</span>
+        <span class="conn-chip off" id="socksChip">SOCKS —</span>
+      </div>
+    </div>
+
+    <div class="site-row hidden" id="siteSection">
+      <span class="site-label">Текущий сайт</span>
+      <span class="site-name" id="currentSite">—</span>
+      <p class="site-status" id="siteStatus"></p>
+      <button type="button" class="add-site-btn" id="addSiteBtn">Добавить сайт</button>
+      <p class="site-hint" id="siteHint">Домен попадёт в белый список (например 2ip.ru)</p>
+    </div>
+
     <div class="error-box" id="errorBox"></div>
 
-    <footer class="footer">Brows VPN v1.0.0</footer>
+    <footer class="footer">Brows VPN v2.0.0</footer>
   </div>
 
+  <script src="theme.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

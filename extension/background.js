@@ -186,7 +186,13 @@ let vpnState = {
   enabled: false,
   mode: 'selective',
   vlessConfig: null,
+  profiles: [],
+  activeProfileId: null,
   domains: [],
+  excludeDomains: [],
+  routingPresets: {},
+  routingRulesCustom: [],
+  routingRules: [],
   socksPort: 10808,
   connectionStatus: 'disconnected',
   lastError: null,
@@ -197,8 +203,128 @@ let vpnState = {
 };
 
 const HEALTH_ALARM = 'browsvpn-health-check';
+const CONTEXT_MENU_ADD = 'browsvpn-add-domain';
+const CONTEXT_MENU_EXCLUDE = 'browsvpn-exclude-domain';
+const MAX_RECOVERY_ATTEMPTS = 3;
+const RECOVERY_BACKOFF_MS = [2000, 5000, 10000];
+
 let enableInProgress = false;
 let recoveryInProgress = false;
+let recoveryAttemptCount = 0;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const EXTERNAL_IP_URL = 'https://api.ipify.org?format=text';
+const EXTERNAL_IP_TTL_MS = 45000;
+const RUNTIME_STATUS_TTL_MS = 15000;
+
+const externalIpCache = { ip: null, fetchedAt: 0 };
+const runtimeStatusCache = { data: null, fetchedAt: 0 };
+
+function isValidPublicIP(value) {
+  if (!value || typeof value !== 'string') return false;
+  const ip = value.trim();
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return true;
+  if (/^[\da-f:]+$/i.test(ip) && ip.includes(':')) return true;
+  return false;
+}
+
+function invalidateConnectionCaches() {
+  externalIpCache.ip = null;
+  externalIpCache.fetchedAt = 0;
+  runtimeStatusCache.data = null;
+  runtimeStatusCache.fetchedAt = 0;
+}
+
+async function fetchExternalIP(force = false) {
+  const now = Date.now();
+  if (!force && externalIpCache.ip && now - externalIpCache.fetchedAt < EXTERNAL_IP_TTL_MS) {
+    return { ip: externalIpCache.ip, cached: true };
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const response = await fetch(EXTERNAL_IP_URL, {
+      cache: 'no-store',
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      throw new Error('HTTP ' + response.status);
+    }
+
+    const ip = (await response.text()).trim();
+    if (!isValidPublicIP(ip)) {
+      throw new Error('Некорректный ответ сервиса IP');
+    }
+
+    externalIpCache.ip = ip;
+    externalIpCache.fetchedAt = Date.now();
+    return { ip, cached: false };
+  } catch (error) {
+    const stale = externalIpCache.ip && now - externalIpCache.fetchedAt < EXTERNAL_IP_TTL_MS * 2;
+    return {
+      ip: stale ? externalIpCache.ip : null,
+      error: error.name === 'AbortError' ? 'Таймаут запроса IP' : error.message,
+      cached: stale
+    };
+  }
+}
+
+async function getRuntimeStatus(force = false) {
+  const now = Date.now();
+  if (!force && runtimeStatusCache.data && now - runtimeStatusCache.fetchedAt < RUNTIME_STATUS_TTL_MS) {
+    return { ...runtimeStatusCache.data, cached: true };
+  }
+
+  try {
+    const resp = await nativeMessaging.healthCheck();
+    const runtime = resp.payload?.data?.runtime;
+    const checks = runtime?.checks || [];
+    const xrayOk = checks.some((c) => c.id === 'xray_process' && c.ok);
+    const socksOk = checks.some((c) => c.id === 'socks_listen' && c.ok);
+    const data = {
+      xrayOk,
+      socksOk,
+      nativeOk: runtime?.ok !== false
+    };
+    runtimeStatusCache.data = data;
+    runtimeStatusCache.fetchedAt = now;
+    return { ...data, cached: false };
+  } catch (error) {
+    return {
+      xrayOk: false,
+      socksOk: false,
+      nativeOk: false,
+      error: error.message,
+      cached: false
+    };
+  }
+}
+
+async function getConnectionInfo(force = false) {
+  await loadSettings();
+
+  const ipPromise = fetchExternalIP(force);
+  const runtimePromise = vpnState.enabled ? getRuntimeStatus(force) : Promise.resolve(null);
+  const [ipResult, runtime] = await Promise.all([ipPromise, runtimePromise]);
+
+  return {
+    enabled: vpnState.enabled,
+    socksPort: vpnState.socksPort,
+    externalIp: ipResult.ip,
+    ipCached: !!ipResult.cached,
+    ipError: ipResult.error || null,
+    xrayOk: runtime?.xrayOk ?? false,
+    socksOk: runtime?.socksOk ?? false,
+    runtimeCached: !!runtime?.cached,
+    runtimeError: runtime?.error || null
+  };
+}
 
 function runLocalChecks() {
   const checks = [];
@@ -223,8 +349,27 @@ function runLocalChecks() {
     if (vpnState.domains.length === 0) {
       checks.push({ id: 'whitelist', ok: false, level: 'error', message: 'Выборочный режим: список доменов пуст' });
     } else {
-      checks.push({ id: 'whitelist', ok: true, level: 'info', message: `В списке ${vpnState.domains.length} домен(ов)` });
+      checks.push({ id: 'whitelist', ok: true, level: 'info', message: `В белом списке ${vpnState.domains.length} домен(ов)` });
     }
+    if (vpnState.routingRules.length) {
+      checks.push({
+        id: 'routing_rules',
+        ok: true,
+        level: 'info',
+        message: `Правил маршрутизации: ${vpnState.routingRules.length}`
+      });
+    }
+  }
+
+  if (vpnState.mode === 'global_exclude') {
+    checks.push({
+      id: 'exclude_list',
+      ok: true,
+      level: 'info',
+      message: vpnState.excludeDomains.length
+        ? `В исключениях ${vpnState.excludeDomains.length} домен(ов)`
+        : 'Исключений нет — весь трафик через VPN'
+    });
   }
 
   if (vpnState.mode === 'disabled') {
@@ -276,16 +421,65 @@ async function runHealthMonitor() {
     await DiagnosticLog.add('error', 'health', 'Health monitor failed', vpnState.lastHealth);
     if (vpnState.autoReconnect && !recoveryInProgress && !enableInProgress) {
       recoveryInProgress = true;
-      await DiagnosticLog.add('info', 'health', 'Attempting recovery reconnect');
+      await DiagnosticLog.add('info', 'health', 'Starting recovery sequence');
       try {
-        await enableVPN();
+        await attemptRecovery();
       } finally {
         recoveryInProgress = false;
       }
     }
   } else {
+    recoveryAttemptCount = 0;
     await DiagnosticLog.add('debug', 'health', 'Health OK');
   }
+}
+
+async function giveUpRecovery(message) {
+  recoveryAttemptCount = 0;
+  await DiagnosticLog.add('error', 'recovery', 'Recovery exhausted — disabling VPN', { message });
+  await disableVPN();
+  vpnState.lastError = message;
+  vpnState.connectionStatus = 'error';
+}
+
+async function attemptRecovery() {
+  await loadSettings();
+
+  const local = runLocalChecks();
+  if (!local.ok) {
+    const err = local.checks.filter((c) => !c.ok && c.level === 'error').map((c) => c.message).join('; ');
+    await giveUpRecovery(
+      err || 'Автовосстановление отменено: исправьте настройки (VLESS, режим, списки доменов)'
+    );
+    return;
+  }
+
+  for (let attempt = 1; attempt <= MAX_RECOVERY_ATTEMPTS; attempt++) {
+    recoveryAttemptCount = attempt;
+    const backoff = RECOVERY_BACKOFF_MS[attempt - 1] || 10000;
+    await DiagnosticLog.add('info', 'recovery', `Попытка ${attempt}/${MAX_RECOVERY_ATTEMPTS}`, {
+      backoffMs: attempt > 1 ? backoff : 0
+    });
+
+    if (attempt > 1) {
+      await sleep(backoff);
+    }
+
+    const result = await enableVPN({ isRecovery: true });
+    if (result.success) {
+      recoveryAttemptCount = 0;
+      vpnState.connectionStatus = 'enabled';
+      vpnState.lastError = null;
+      await DiagnosticLog.add('info', 'recovery', 'Соединение восстановлено');
+      return;
+    }
+
+    await DiagnosticLog.add('warn', 'recovery', `Попытка ${attempt} не удалась`, { error: result.error });
+  }
+
+  await giveUpRecovery(
+    'VPN отключён: не удалось восстановить соединение после ' + MAX_RECOVERY_ATTEMPTS + ' попыток'
+  );
 }
 
 function startHealthAlarm() {
@@ -305,17 +499,23 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 let webRequestListener = null;
 
 function pacRouteForHost(host, mode, domains) {
-  return BrowsValidators.pacRouteForHost(host, mode, domains, vpnState.socksPort);
+  return BrowsValidators.pacRouteForHost(
+    host, mode, domains, vpnState.socksPort, vpnState.excludeDomains, vpnState.routingRules
+  );
 }
 
-async function setProxy(mode, domains = [], socksPort = 10808) {
-  const pacScript = BrowsValidators.generatePACScript(mode, domains, socksPort);
+async function setProxy(mode, domains = [], socksPort = 10808, excludeDomains = [], routingRules = []) {
+  const pacScript = BrowsValidators.generatePACScript(
+    mode, domains, socksPort, excludeDomains, routingRules
+  );
   vpnState.lastPacScript = pacScript;
 
   await DiagnosticLog.add('info', 'proxy', 'Applying PAC', {
     mode,
     socksPort,
     domains,
+    excludeDomains,
+    routingRules,
     pacPreview: pacScript.slice(0, 500)
   });
 
@@ -341,16 +541,41 @@ async function clearProxy() {
 async function loadSettings() {
   const data = await chrome.storage.local.get([
     'vlessConfig',
+    'profiles',
+    'activeProfileId',
     'operationMode',
     'domainList',
+    'excludeList',
+    'routingPresets',
+    'routingRulesCustom',
     'socksPort',
     'autoReconnect',
     'debugLogging'
   ]);
 
-  if (data.vlessConfig) vpnState.vlessConfig = data.vlessConfig;
+  const migrated = BrowsValidators.migrateProfilesFromLegacy(
+    data.profiles,
+    data.vlessConfig,
+    data.activeProfileId
+  );
+  vpnState.profiles = migrated.profiles;
+  vpnState.activeProfileId = migrated.activeProfileId;
+  vpnState.vlessConfig = BrowsValidators.activeProfileVlessUrl(
+    vpnState.profiles,
+    vpnState.activeProfileId
+  ) || data.vlessConfig || null;
+
   if (data.operationMode) vpnState.mode = data.operationMode;
   if (data.domainList) vpnState.domains = data.domainList;
+  if (Array.isArray(data.excludeList)) vpnState.excludeDomains = data.excludeList;
+  vpnState.routingPresets = data.routingPresets && typeof data.routingPresets === 'object'
+    ? data.routingPresets
+    : {};
+  vpnState.routingRulesCustom = Array.isArray(data.routingRulesCustom) ? data.routingRulesCustom : [];
+  vpnState.routingRules = BrowsValidators.buildRoutingRules(
+    vpnState.routingPresets,
+    vpnState.routingRulesCustom
+  );
   if (data.socksPort) vpnState.socksPort = data.socksPort;
   if (data.autoReconnect !== undefined) vpnState.autoReconnect = data.autoReconnect;
   if (data.debugLogging !== undefined) vpnState.debugLogging = data.debugLogging;
@@ -384,12 +609,16 @@ function updateWebRequestDebug(enabled) {
   );
 }
 
-async function enableVPN() {
+async function enableVPN(options = {}) {
+  const isRecovery = !!options.isRecovery;
   if (enableInProgress) {
     return { success: false, error: 'Включение VPN уже выполняется' };
   }
   enableInProgress = true;
   await loadSettings();
+  if (!isRecovery) {
+    recoveryAttemptCount = 0;
+  }
   vpnState.lastError = null;
 
   try {
@@ -440,14 +669,24 @@ async function enableVPN() {
       throw new Error(response.payload?.error?.message || extra || 'Ошибка native host');
     }
 
-    const pacScript = await setProxy(vpnState.mode, vpnState.domains, vpnState.socksPort);
+    const pacScript = await setProxy(
+      vpnState.mode,
+      vpnState.domains,
+      vpnState.socksPort,
+      vpnState.excludeDomains,
+      vpnState.routingRules
+    );
     const proxyVerify = await verifyProxySettings(vpnState.mode);
     if (!proxyVerify.ok) {
       throw new Error('PAC-прокси не применился в Chrome');
     }
 
     const whitelistCheck = BrowsValidators.verifyWhitelistRoutes(
-      vpnState.mode, vpnState.domains, vpnState.socksPort
+      vpnState.mode,
+      vpnState.domains,
+      vpnState.socksPort,
+      vpnState.excludeDomains,
+      vpnState.routingRules
     );
     if (!whitelistCheck.ok) {
       const detail = whitelistCheck.failures
@@ -456,27 +695,50 @@ async function enableVPN() {
       throw new Error('Не все домены из белого списка идут через VPN: ' + detail);
     }
 
+    const excludeCheck = BrowsValidators.verifyExcludeRoutes(
+      vpnState.mode, vpnState.excludeDomains, vpnState.socksPort
+    );
+    if (!excludeCheck.ok) {
+      const detail = excludeCheck.failures
+        .map((f) => `${f.pattern} (${f.host} → ${f.route})`)
+        .join('; ');
+      throw new Error('Ошибка списка исключений: ' + detail);
+    }
+
     for (const domain of vpnState.domains) {
       const host = BrowsValidators.sampleHostForPattern(domain);
       const route = BrowsValidators.pacRouteForHost(
-        host, vpnState.mode, vpnState.domains, vpnState.socksPort
+        host,
+        vpnState.mode,
+        vpnState.domains,
+        vpnState.socksPort,
+        vpnState.excludeDomains,
+        vpnState.routingRules
       );
       await DiagnosticLog.add('info', 'pac-test', `Whitelist "${domain}"`, { host, route });
     }
 
     vpnState.enabled = true;
     vpnState.connectionStatus = 'enabled';
+    invalidateConnectionCaches();
     startHealthAlarm();
+    await updateActionBadge();
     await DiagnosticLog.add('info', 'vpn', 'VPN enabled', { pacLength: pacScript.length });
     return { success: true };
   } catch (error) {
-    await DiagnosticLog.add('error', 'vpn', 'Enable failed', { error: error.message });
+    await DiagnosticLog.add('error', 'vpn', isRecovery ? 'Recovery enable failed' : 'Enable failed', {
+      error: error.message,
+      attempt: isRecovery ? recoveryAttemptCount : null
+    });
     vpnState.connectionStatus = 'error';
     vpnState.lastError = error.message;
-    stopHealthAlarm();
+    if (!isRecovery) {
+      stopHealthAlarm();
+    }
     return { success: false, error: error.message, details: error.nativeData };
   } finally {
     enableInProgress = false;
+    await updateActionBadge();
   }
 }
 
@@ -487,9 +749,11 @@ async function disableVPN() {
       DiagnosticLog.add('warn', 'native', 'disable_vpn error', { error: e.message });
     });
     await clearProxy();
+    invalidateConnectionCaches();
     vpnState.enabled = false;
     vpnState.connectionStatus = 'disabled';
     vpnState.lastError = null;
+    await updateActionBadge();
     await DiagnosticLog.add('info', 'vpn', 'VPN disabled');
     return { success: true };
   } catch (error) {
@@ -513,9 +777,11 @@ async function getDiagnostics(testHost = '') {
     mode: vpnState.mode,
     socksPort: vpnState.socksPort,
     domains: vpnState.domains,
+    excludeDomains: vpnState.excludeDomains,
     status: vpnState.connectionStatus,
     lastError: vpnState.lastError,
-    lastHealth: vpnState.lastHealth
+    lastHealth: vpnState.lastHealth,
+    recoveryAttemptCount
   });
 
   push('Локальная проверка', runLocalChecks());
@@ -577,27 +843,409 @@ async function getDiagnostics(testHost = '') {
   return { text: lines.join('\n') };
 }
 
-async function reapplyProxyIfEnabled() {
-  if (!vpnState.enabled) return;
-  await setProxy(vpnState.mode, vpnState.domains, vpnState.socksPort);
-  await DiagnosticLog.add('info', 'proxy', 'PAC re-applied after settings change');
+async function persistProfiles() {
+  await chrome.storage.local.set({
+    profiles: vpnState.profiles,
+    activeProfileId: vpnState.activeProfileId,
+    vlessConfig: vpnState.vlessConfig
+  });
 }
 
-chrome.runtime.onInstalled.addListener(() => loadSettings());
-chrome.runtime.onStartup.addListener(() => loadSettings());
-loadSettings();
+async function setActiveProfile(profileId) {
+  await loadSettings();
+  const profile = vpnState.profiles.find((p) => p.id === profileId);
+  if (!profile) {
+    return { success: false, error: 'Профиль не найден' };
+  }
+  vpnState.activeProfileId = profileId;
+  vpnState.vlessConfig = profile.vless_url;
+  await persistProfiles();
+  invalidateConnectionCaches();
+  if (vpnState.enabled) {
+    await reapplyProxyIfEnabled();
+  }
+  return { success: true, profileId, profileName: profile.name };
+}
+
+async function reapplyProxyIfEnabled() {
+  if (!vpnState.enabled) return;
+  await setProxy(
+    vpnState.mode,
+    vpnState.domains,
+    vpnState.socksPort,
+    vpnState.excludeDomains,
+    vpnState.routingRules
+  );
+  await DiagnosticLog.add('info', 'proxy', 'PAC re-applied after settings change');
+  await updateActionBadge();
+}
+
+async function getActiveTabHost() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.url) return null;
+  const hostname = BrowsValidators.hostnameFromUrl(tab.url);
+  if (!hostname) return null;
+  const apex = BrowsValidators.toWhitelistDomain(hostname);
+  if (!apex.ok) return { hostname, domain: null, tabId: tab.id, error: apex.error };
+  return { hostname, domain: apex.domain, tabId: tab.id };
+}
+
+async function updateActionBadge(tabHostname = null) {
+  try {
+    if (!vpnState.enabled) {
+      await chrome.action.setBadgeText({ text: '' });
+      return;
+    }
+
+    if (vpnState.mode === 'global') {
+      await chrome.action.setBadgeBackgroundColor({ color: '#10B981' });
+      await chrome.action.setBadgeText({ text: 'ON' });
+      return;
+    }
+
+    if (vpnState.mode === 'global_exclude') {
+      let host = tabHostname;
+      if (!host) {
+        const tab = await getActiveTabHost();
+        host = tab?.hostname || null;
+      }
+      if (!host) {
+        await chrome.action.setBadgeBackgroundColor({ color: '#10B981' });
+        await chrome.action.setBadgeText({ text: 'ON' });
+        return;
+      }
+      const viaVpn = BrowsValidators.isHostProxied(
+        host,
+        vpnState.mode,
+        vpnState.domains,
+        vpnState.socksPort,
+        vpnState.excludeDomains,
+        vpnState.routingRules
+      );
+      if (viaVpn) {
+        await chrome.action.setBadgeBackgroundColor({ color: '#10B981' });
+        await chrome.action.setBadgeText({ text: 'OK' });
+      } else {
+        await chrome.action.setBadgeBackgroundColor({ color: '#64748B' });
+        await chrome.action.setBadgeText({ text: '--' });
+      }
+      return;
+    }
+
+    if (vpnState.mode === 'disabled') {
+      await chrome.action.setBadgeBackgroundColor({ color: '#F59E0B' });
+      await chrome.action.setBadgeText({ text: '!' });
+      return;
+    }
+
+    let host = tabHostname;
+    if (!host) {
+      const tab = await getActiveTabHost();
+      host = tab?.hostname || null;
+    }
+
+    if (!host) {
+      await chrome.action.setBadgeBackgroundColor({ color: '#10B981' });
+      await chrome.action.setBadgeText({ text: 'ON' });
+      return;
+    }
+
+    const viaVpn = BrowsValidators.isHostProxied(
+      host,
+      vpnState.mode,
+      vpnState.domains,
+      vpnState.socksPort,
+      vpnState.excludeDomains,
+      vpnState.routingRules
+    );
+
+    if (viaVpn) {
+      await chrome.action.setBadgeBackgroundColor({ color: '#10B981' });
+      await chrome.action.setBadgeText({ text: 'OK' });
+    } else {
+      await chrome.action.setBadgeBackgroundColor({ color: '#64748B' });
+      await chrome.action.setBadgeText({ text: '--' });
+    }
+  } catch (e) {
+    console.warn('[BrowsVPN] badge update failed', e);
+  }
+}
+
+async function addDomainToWhitelist(domain) {
+  await loadSettings();
+
+  if (vpnState.mode !== 'selective') {
+    return { success: false, error: 'Добавление сайтов доступно только в выборочном режиме' };
+  }
+
+  const normalized = BrowsValidators.normalizeDomain(domain);
+  if (!normalized.ok) {
+    return { success: false, error: normalized.error };
+  }
+
+  const d = normalized.domain;
+  const exact = vpnState.domains.some((x) => x.toLowerCase() === d);
+
+  const probeHost = d.startsWith('*.') ? 'www.' + d.slice(2) : 'www.' + d;
+  const covered = BrowsValidators.pacRouteForHost(
+    probeHost,
+    'selective',
+    vpnState.domains,
+    vpnState.socksPort,
+    [],
+    vpnState.routingRules
+  ).includes('SOCKS');
+
+  if (exact || covered) {
+    return {
+      success: true,
+      alreadyListed: true,
+      domain: d,
+      domainCount: vpnState.domains.length
+    };
+  }
+
+  vpnState.domains = [...vpnState.domains, d];
+  await chrome.storage.local.set({ domainList: vpnState.domains });
+  await reapplyProxyIfEnabled();
+  await DiagnosticLog.add('info', 'whitelist', `Added domain ${d}`, { domains: vpnState.domains });
+
+  return {
+    success: true,
+    alreadyListed: false,
+    domain: d,
+    domainCount: vpnState.domains.length
+  };
+}
+
+async function addCurrentTabToWhitelist() {
+  const tab = await getActiveTabHost();
+  if (!tab) {
+    return { success: false, error: 'Нет активной вкладки с сайтом' };
+  }
+  if (!tab.domain) {
+    return { success: false, error: tab.error || 'Не удалось определить домен' };
+  }
+  const result = await addDomainToWhitelist(tab.domain);
+  return { ...result, hostname: tab.hostname };
+}
+
+async function addDomainToExcludeList(domain) {
+  await loadSettings();
+
+  if (vpnState.mode !== 'global_exclude') {
+    return {
+      success: false,
+      error: 'Исключения доступны только в режиме «Глобальный с исключениями»'
+    };
+  }
+
+  const normalized = BrowsValidators.normalizeDomain(domain);
+  if (!normalized.ok) {
+    return { success: false, error: normalized.error };
+  }
+
+  const d = normalized.domain;
+  if (vpnState.excludeDomains.some((x) => x.toLowerCase() === d)) {
+    return {
+      success: true,
+      alreadyListed: true,
+      domain: d,
+      excludeCount: vpnState.excludeDomains.length
+    };
+  }
+
+  vpnState.excludeDomains = [...vpnState.excludeDomains, d];
+  await chrome.storage.local.set({ excludeList: vpnState.excludeDomains });
+  await reapplyProxyIfEnabled();
+  await DiagnosticLog.add('info', 'exclude', `Added exclude ${d}`, {
+    excludeDomains: vpnState.excludeDomains
+  });
+
+  return {
+    success: true,
+    alreadyListed: false,
+    domain: d,
+    excludeCount: vpnState.excludeDomains.length
+  };
+}
+
+function resolveDomainFromContext(info, tab) {
+  const url = info.linkUrl || info.pageUrl || tab?.url;
+  if (!url) {
+    return { ok: false, error: 'URL страницы недоступен' };
+  }
+  const hostname = BrowsValidators.hostnameFromUrl(url);
+  if (!hostname) {
+    return { ok: false, error: 'Контекстное меню работает только на http(s) сайтах' };
+  }
+  const apex = BrowsValidators.toWhitelistDomain(hostname);
+  if (!apex.ok) {
+    return { ok: false, error: apex.error };
+  }
+  return { ok: true, domain: apex.domain, hostname };
+}
+
+async function setupContextMenus() {
+  await chrome.contextMenus.removeAll();
+  chrome.contextMenus.create({
+    id: CONTEXT_MENU_ADD,
+    title: 'Добавить домен в VPN',
+    contexts: ['page', 'link']
+  });
+  chrome.contextMenus.create({
+    id: CONTEXT_MENU_EXCLUDE,
+    title: 'Исключить домен из VPN',
+    contexts: ['page', 'link']
+  });
+}
+
+async function updateContextMenuVisibility() {
+  await loadSettings();
+  const addVisible = vpnState.mode === 'selective';
+  const excludeVisible = vpnState.mode === 'global_exclude';
+  try {
+    await chrome.contextMenus.update(CONTEXT_MENU_ADD, { visible: addVisible });
+    await chrome.contextMenus.update(CONTEXT_MENU_EXCLUDE, { visible: excludeVisible });
+  } catch (e) {
+    await setupContextMenus();
+    await chrome.contextMenus.update(CONTEXT_MENU_ADD, { visible: addVisible });
+    await chrome.contextMenus.update(CONTEXT_MENU_EXCLUDE, { visible: excludeVisible });
+  }
+}
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  const resolved = resolveDomainFromContext(info, tab);
+  if (!resolved.ok) {
+    await DiagnosticLog.add('warn', 'context-menu', resolved.error);
+    return;
+  }
+
+  let result;
+  if (info.menuItemId === CONTEXT_MENU_ADD) {
+    result = await addDomainToWhitelist(resolved.domain);
+  } else if (info.menuItemId === CONTEXT_MENU_EXCLUDE) {
+    result = await addDomainToExcludeList(resolved.domain);
+  } else {
+    return;
+  }
+
+  if (result.success) {
+    const msg = result.alreadyListed
+      ? `Домен уже в списке: ${resolved.domain}`
+      : `Добавлено: ${resolved.domain}`;
+    await DiagnosticLog.add('info', 'context-menu', msg, result);
+    await updateActionBadge(resolved.hostname);
+  } else {
+    await DiagnosticLog.add('warn', 'context-menu', result.error, { domain: resolved.domain });
+  }
+});
+
+async function initExtensionState() {
+  await loadSettings();
+  await updateContextMenuVisibility();
+  await updateActionBadge();
+}
+
+async function openOnboardingTab() {
+  await chrome.tabs.create({ url: chrome.runtime.getURL('onboarding.html') });
+}
+
+async function openOnboardingIfNeeded(reason) {
+  if (reason !== 'install') return;
+  const data = await chrome.storage.local.get(['onboardingComplete']);
+  if (!data.onboardingComplete) {
+    await openOnboardingTab();
+  }
+}
+
+chrome.runtime.onInstalled.addListener(async (details) => {
+  await setupContextMenus();
+  await initExtensionState();
+  await openOnboardingIfNeeded(details.reason);
+});
+chrome.runtime.onStartup.addListener(() => initExtensionState());
+initExtensionState();
+
+chrome.tabs.onActivated.addListener(() => {
+  loadSettings().then(() => updateActionBadge());
+});
+
+chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+  if (changeInfo.status !== 'complete' || !tab.active || !tab.url) return;
+  const host = BrowsValidators.hostnameFromUrl(tab.url);
+  loadSettings().then(() => updateActionBadge(host));
+});
 
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+  if (request.action === 'completeOnboarding') {
+    chrome.storage.local.set({ onboardingComplete: true }).then(async () => {
+      await DiagnosticLog.add('info', 'onboarding', request.skipped ? 'Onboarding skipped' : 'Onboarding completed');
+      sendResponse({ success: true });
+    });
+    return true;
+  }
+
+  if (request.action === 'getOnboardingStatus') {
+    chrome.storage.local.get(['onboardingComplete']).then((data) => {
+      sendResponse({ complete: !!data.onboardingComplete });
+    });
+    return true;
+  }
+
+  if (request.action === 'setActiveProfile') {
+    setActiveProfile(request.profileId).then(sendResponse);
+    return true;
+  }
+
+  if (request.action === 'getConnectionInfo') {
+    getConnectionInfo(!!request.force).then(sendResponse);
+    return true;
+  }
+
   if (request.action === 'getProxyStatus') {
-    loadSettings().then(() => {
+    loadSettings().then(async () => {
+      const tab = await getActiveTabHost();
+      let inList = false;
+      let whitelisted = false;
+      if (tab?.hostname) {
+        whitelisted = BrowsValidators.hostMatchesAnyPattern(tab.hostname, vpnState.domains);
+        inList = BrowsValidators.isHostProxied(
+          tab.hostname,
+          vpnState.mode,
+          vpnState.domains,
+          vpnState.socksPort,
+          vpnState.excludeDomains,
+          vpnState.routingRules
+        );
+      }
       sendResponse({
         enabled: vpnState.enabled,
         mode: vpnState.mode,
         status: vpnState.connectionStatus,
         error: vpnState.lastError,
-        domainCount: vpnState.domains.length
+        domainCount: vpnState.domains.length,
+        excludeCount: vpnState.excludeDomains.length,
+        routingRuleCount: vpnState.routingRules.length,
+        profiles: vpnState.profiles.map((p) => ({ id: p.id, name: p.name })),
+        activeProfileId: vpnState.activeProfileId,
+        currentTab: tab
+          ? {
+              hostname: tab.hostname,
+              domain: tab.domain,
+              inList,
+              whitelisted,
+              error: tab.error || null
+            }
+          : null,
+        canAddSite: vpnState.mode === 'selective' && !!tab?.domain
       });
     });
+    return true;
+  }
+
+  if (request.action === 'addCurrentSite') {
+    addCurrentTabToWhitelist().then(sendResponse);
     return true;
   }
 
@@ -671,19 +1319,57 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 
   if (request.action === 'updateSettings') {
     loadSettings().then(async () => {
-      if (request.vlessConfig) vpnState.vlessConfig = request.vlessConfig;
+      if (request.vlessConfig) {
+        vpnState.vlessConfig = request.vlessConfig;
+        if (vpnState.activeProfileId) {
+          const idx = vpnState.profiles.findIndex((p) => p.id === vpnState.activeProfileId);
+          if (idx >= 0) {
+            vpnState.profiles[idx] = {
+              ...vpnState.profiles[idx],
+              vless_url: request.vlessConfig
+            };
+          }
+        }
+      }
+      if (request.profiles) {
+        vpnState.profiles = request.profiles.map((p) => BrowsValidators.normalizeProfile(p)).filter(Boolean);
+      }
+      if (request.activeProfileId !== undefined) {
+        vpnState.activeProfileId = request.activeProfileId;
+        vpnState.vlessConfig = BrowsValidators.activeProfileVlessUrl(
+          vpnState.profiles,
+          vpnState.activeProfileId
+        ) || vpnState.vlessConfig;
+      }
       if (request.mode) vpnState.mode = request.mode;
       if (request.domains) vpnState.domains = request.domains;
+      if (request.excludeDomains !== undefined) vpnState.excludeDomains = request.excludeDomains;
+      if (request.routingPresets) vpnState.routingPresets = request.routingPresets;
+      if (request.routingRulesCustom) {
+        vpnState.routingRulesCustom = request.routingRulesCustom
+          .map((r) => BrowsValidators.normalizeRoutingRule(r))
+          .filter(Boolean);
+      }
+      vpnState.routingRules = BrowsValidators.buildRoutingRules(
+        vpnState.routingPresets,
+        vpnState.routingRulesCustom
+      );
       if (request.socksPort) vpnState.socksPort = request.socksPort;
 
       await chrome.storage.local.set({
         vlessConfig: vpnState.vlessConfig,
+        profiles: vpnState.profiles,
+        activeProfileId: vpnState.activeProfileId,
         operationMode: vpnState.mode,
         domainList: vpnState.domains,
+        excludeList: vpnState.excludeDomains,
+        routingPresets: vpnState.routingPresets,
+        routingRulesCustom: vpnState.routingRulesCustom,
         socksPort: vpnState.socksPort
       });
 
       await reapplyProxyIfEnabled();
+      await updateContextMenuVisibility();
       sendResponse({ success: true });
     });
     return true;
@@ -694,7 +1380,12 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 
 chrome.proxy.onProxyError.addListener(async (error) => {
   await DiagnosticLog.add('error', 'proxy-error', 'Chrome proxy error', error);
-  if (vpnState.enabled && vpnState.autoReconnect) {
-    setTimeout(() => enableVPN(), 5000);
+  if (vpnState.enabled && vpnState.autoReconnect && !recoveryInProgress && !enableInProgress) {
+    recoveryInProgress = true;
+    try {
+      await attemptRecovery();
+    } finally {
+      recoveryInProgress = false;
+    }
   }
 });

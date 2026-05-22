@@ -1,10 +1,19 @@
 # Brows VPN - Technical Architecture
 
 > **Обновлено:** 2026-05-22  
-> Описывает **целевую** архитектуру. Разделы «Security», «Monitoring», «Deployment» — частично или полностью не реализованы.  
-> **Фактическое состояние:** [CURRENT_STATUS.md](./CURRENT_STATUS.md)
+> Описывает **целевую** архитектуру. Tray, multi-protocol — **v3** ([FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md)).  
+> **Фактическое состояние v1:** [CURRENT_STATUS.md](./CURRENT_STATUS.md)
 
-## System Architecture
+## Два слоя (не «просто PAC»)
+
+| Слой | Компонент | Роль |
+|------|-----------|------|
+| **Browser** | Extension + PAC | Куда Chrome направляет HTTP(S): SOCKS или DIRECT |
+| **VPN** | Go + Xray через Native Messaging | Поднять VLESS-туннель, локальный SOCKS, health, restart |
+
+PAC-only расширение не может запустить Xray или проверить туннель. Подробнее: [FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md#почему-go--xray--native-messaging-а-не-просто-pac-расширение).
+
+---
 
 ### High-Level Overview
 

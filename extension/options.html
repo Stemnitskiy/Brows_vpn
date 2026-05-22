@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Настройки Brows VPN</title>
+  <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
@@ -19,6 +20,9 @@
         <div>
           <h1>Brows VPN</h1>
           <p class="subtitle">Настройки подключения и маршрутизации</p>
+          <p class="header-actions">
+            <button type="button" class="btn btn-ghost btn-sm" id="restartOnboardingBtn">Пройти настройку снова</button>
+          </p>
         </div>
       </div>
     </header>
@@ -36,6 +40,14 @@
             <h2 class="card-title">Конфигурация VLESS</h2>
             <p class="card-desc">Ссылка на сервер из панели провайдера</p>
           </div>
+        </div>
+        <div class="profile-block">
+          <div class="profile-block-head">
+            <span class="field-label">Профили серверов</span>
+            <button type="button" class="btn btn-ghost btn-sm" id="addProfileBtn">+ Новый</button>
+          </div>
+          <ul class="profile-list" id="profileList" aria-label="Список профилей"></ul>
+          <p class="field-hint">Активный профиль используется при включении VPN. Поле ниже — его VLESS URL.</p>
         </div>
         <div class="field">
           <label for="vlessConfig">VLESS URL</label>
@@ -76,6 +88,14 @@
             <span class="mode-card-check" aria-hidden="true"></span>
           </label>
           <label class="mode-card">
+            <input type="radio" name="operationMode" value="global_exclude">
+            <span class="mode-card-body">
+              <span class="mode-card-title">Глобальный с исключениями</span>
+              <span class="mode-card-desc">Весь трафик, кроме списка ниже</span>
+            </span>
+            <span class="mode-card-check" aria-hidden="true"></span>
+          </label>
+          <label class="mode-card">
             <input type="radio" name="operationMode" value="disabled">
             <span class="mode-card-body">
               <span class="mode-card-title">Отключён</span>
@@ -111,6 +131,65 @@
         </div>
       </section>
 
+      <!-- Smart routing -->
+      <section class="card">
+        <div class="card-head">
+          <span class="card-icon card-icon--green" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+          </span>
+          <div>
+            <h2 class="card-title">Умная маршрутизация</h2>
+            <p class="card-desc">Правила проверяются перед белым списком и исключениями</p>
+          </div>
+        </div>
+        <fieldset class="preset-checks">
+          <legend class="sr-only">Пресеты правил</legend>
+          <label class="preset-check">
+            <input type="checkbox" id="presetTldRu" value="tld_ru">
+            <span>Домены <code>.ru</code> → напрямую</span>
+          </label>
+          <label class="preset-check">
+            <input type="checkbox" id="presetTldLocal" value="tld_local">
+            <span><code>*.local</code> → напрямую</span>
+          </label>
+          <label class="preset-check">
+            <input type="checkbox" id="presetLocalhost" value="localhost">
+            <span><code>localhost</code> → напрямую</span>
+          </label>
+        </fieldset>
+        <div class="field">
+          <label for="routingRules">Свои правила</label>
+          <textarea id="routingRules" class="input input-mono" rows="4" placeholder="google.com proxy&#10;*.cdn.example direct"></textarea>
+          <span class="field-hint">Формат: <code>шаблон proxy|direct</code> — одно правило на строку</span>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" id="saveRouting">Сохранить правила</button>
+          <button type="button" class="btn btn-ghost" id="clearRouting">Очистить свои</button>
+        </div>
+      </section>
+
+      <!-- Exclude list -->
+      <section class="card">
+        <div class="card-head">
+          <span class="card-icon card-icon--amber" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
+          </span>
+          <div>
+            <h2 class="card-title">Список исключений</h2>
+            <p class="card-desc">Для режима «Глобальный с исключениями» — напрямую, без VPN</p>
+          </div>
+        </div>
+        <div class="field">
+          <label for="excludeList">Домены-исключения</label>
+          <textarea id="excludeList" class="input input-mono" rows="5" placeholder="localhost&#10;127.0.0.1&#10;sberbank.ru&#10;*.local"></textarea>
+          <span class="field-hint">Пример: банк или локальные сайты, которые не должны идти через VPN</span>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-primary" id="saveExclude">Сохранить исключения</button>
+          <button type="button" class="btn btn-ghost" id="clearExclude">Очистить</button>
+        </div>
+      </section>
+
       <!-- Connection -->
       <section class="card">
         <div class="card-head">
@@ -139,6 +218,15 @@
             <option value="error">Ошибки</option>
           </select>
         </div>
+        <div class="field">
+          <label for="themeMode">Тема интерфейса</label>
+          <select id="themeMode" class="input">
+            <option value="system">Как в системе</option>
+            <option value="light">Светлая</option>
+            <option value="dark">Тёмная</option>
+          </select>
+          <span class="field-hint">Popup, настройки и мастер установки</span>
+        </div>
         <label class="switch-row">
           <span class="switch">
             <input type="checkbox" id="autoReconnect" checked>
@@ -152,6 +240,42 @@
         <div class="btn-row">
           <button type="button" class="btn btn-primary" id="saveSettings">Сохранить настройки</button>
         </div>
+      </section>
+
+      <!-- Import / Export -->
+      <section class="card">
+        <div class="card-head">
+          <span class="card-icon card-icon--blue" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          </span>
+          <div>
+            <h2 class="card-title">Импорт и экспорт</h2>
+            <p class="card-desc">Резервная копия настроек в JSON (локально, без облака)</p>
+          </div>
+        </div>
+
+        <div class="secret-warning" role="note">
+          <strong>Секреты в файле.</strong> Экспорт содержит VLESS URL и другие чувствительные данные.
+          Храните файл в безопасном месте и не публикуйте его.
+        </div>
+
+        <div class="btn-row btn-row--wrap">
+          <button type="button" class="btn btn-primary" id="exportSettingsBtn">Экспорт в буфер</button>
+          <button type="button" class="btn btn-secondary" id="downloadExportBtn">Скачать JSON</button>
+        </div>
+
+        <div class="field">
+          <label for="importJson">Импорт из JSON</label>
+          <textarea id="importJson" class="input input-mono" rows="6" placeholder='{"version":1,"app":"Brows VPN","settings":{...}}'></textarea>
+        </div>
+        <div class="btn-row btn-row--wrap">
+          <button type="button" class="btn btn-secondary" id="importFileBtn">Выбрать файл</button>
+          <button type="button" class="btn btn-primary" id="previewImportBtn">Предпросмотр</button>
+          <button type="button" class="btn btn-primary" id="applyImportBtn" disabled>Применить импорт</button>
+        </div>
+        <input type="file" id="importFile" accept=".json,application/json" hidden>
+
+        <div id="importPreview" class="import-preview" hidden></div>
       </section>
 
       <!-- Diagnostics -->
@@ -202,10 +326,11 @@
       </section>
     </main>
 
-    <footer class="page-footer">Brows VPN v1.0.0</footer>
+    <footer class="page-footer">Brows VPN v2.0.0</footer>
   </div>
 
   <script src="validators.js"></script>
+  <script src="theme.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

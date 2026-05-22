@@ -10,7 +10,8 @@
 |----------|----------|----------|
 | [README.md](./README.md) | Все | Обзор проекта и структура |
 | [CURRENT_STATUS.md](./CURRENT_STATUS.md) | Разработчик | Что работает / что нет |
-| [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) | Разработчик | **План реализации по этапам** |
+| [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) | Разработчик | **План v2/v3 по этапам** |
+| [FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md) | Разработчик / PM | **Что делаем / отклонено** |
 | [QUICK_START.md](./QUICK_START.md) | Разработчик | Сборка и загрузка extension |
 
 ---
@@ -19,8 +20,9 @@
 
 | Документ | Актуальность |
 |----------|--------------|
-| [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) | ✅ Актуален — основной план |
-| [ROADMAP.md](./ROADMAP.md) | ✅ Актуален — краткая сводка |
+| [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) | ✅ v1 done + **план v2/v3** |
+| [FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md) | ✅ **Решения по функциям**, Go vs PAC |
+| [ROADMAP.md](./ROADMAP.md) | ✅ Краткая сводка версий |
 | [CURRENT_STATUS.md](./CURRENT_STATUS.md) | ✅ Актуален |
 | [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) | ⚠️ Переименован по смыслу — статус «не завершён» |
 | [DEVELOPMENT_PLAN.md](./DEVELOPMENT_PLAN.md) | 📦 Архив — исходный план Phase 0–5 |

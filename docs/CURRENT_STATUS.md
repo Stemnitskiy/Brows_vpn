@@ -1,39 +1,64 @@
 # Brows VPN — Текущий статус разработки
 
 > **Обновлено:** 2026-05-22  
-> **Веха:** первое рабочее MVP (E2E проверено)  
-> **План работ:** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)
+> **Веха v1:** ✅ первое рабочее MVP (`2310c6d`)  
+> **Следующий фокус:** v3 — WebRTC, tray, multi-protocol  
+> **Веха v2:** ✅ extension **v2.0.0** (v2.1–v2.10)  
+> **План:** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) · **Решения:** [FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md)
 
 ---
 
 ## Сводка
 
-| Компонент | Готовность | Комментарий |
-|-----------|------------|-------------|
-| Extension UI (popup + settings) | 90% | Toggle, русский UI, карточки настроек |
-| Go proxy-service | 85% | NM handler, Xray start/stop, health checks |
-| Native Messaging | 90% | Chrome ↔ browsvpn-proxy.exe |
-| Xray integration | 85% | VLESS Reality, SOCKS 10808, selective PAC |
-| Preflight / health | 85% | Extension + Go проверки, auto-reconnect |
-| System Tray | 20% | Код есть, не подключён |
-| Тесты | 55% | go test, PAC whitelist, integration script |
-| **MVP (рабочий VPN)** | **✅ ~85%** | Работает: Enable VPN → PAC → SOCKS → Xray |
+| Компонент | v1 | Комментарий |
+|-----------|:--:|-------------|
+| Extension UI (popup + settings) | ✅ | Toggle, карточки, RU |
+| Go proxy-service + NM | ✅ | Handler, preflight, health |
+| Xray VLESS Reality | ✅ | SOCKS 10808 |
+| Selective / global PAC | ✅ | Multi-domain whitelist |
+| Preflight / auto-reconnect | ✅ | v2.3 уточнит recovery policy |
+| **v2.1** | ✅ | «Добавить сайт» + badge (extension v1.1.0) |
+| **v2.2** | ✅ | Blacklist / global_exclude (extension v1.2.0) |
+| **v2.3** | ✅ | Recovery: 3× restart → disable VPN (extension v1.3.0) |
+| **v2.4** | ✅ | IP и статус в popup (extension v1.4.0) |
+| **v2.5** | ✅ | Профили VLESS (extension v1.5.0) |
+| **v2.6** | ✅ | Smart routing / правила PAC (extension v1.6.0) |
+| **v2.7** | ✅ | Import / export JSON (extension v1.7.0) |
+| **v2.8** | ✅ | Контекстное меню (extension v1.8.0) |
+| **v2.9** | ✅ | Onboarding wizard (extension v1.9.0) |
+| **v2.10** | ✅ | Тёмная тема (extension v2.0.0) |
+| **v3** (tray, WebRTC, …) | ⬜ | Следующий этап |
 
 ---
 
-## Что работает (первое рабочее MVP)
+## v1 — что работает
 
-- [x] Popup: круглый toggle, loading, режим/счётчик доменов
-- [x] Settings: VLESS, whitelist, режим, порт, диагностика
-- [x] Selective PAC — несколько доменов в белом списке
-- [x] Native Messaging + `browsvpn-proxy.exe` (сборка: `go build -o browsvpn-proxy.exe ./cmd`)
-- [x] Xray 26 VLESS Reality client
-- [x] Preflight, health monitor, find free port
-- [x] Автотесты: `go test ./...`, `node scripts/test-pac-whitelist.js`
+- Popup: power toggle, **IP + статус Xray/SOCKS**, «Добавить сайт», badge (v1.4.0)  
+- Settings: VLESS, whitelist, **исключения**, режим (selective / global / global_exclude), порт, диагностика  
+- Enable VPN → Xray → PAC → SOCKS  
+- «Подобрать порт», полная preflight-проверка  
+- Тесты: `go test ./...`, `node scripts/test-pac-whitelist.js`
 
 ---
 
-## Быстрый старт
+## v2 — согласованный scope
+
+| Этап | Функция |
+|------|---------|
+| v2.1 | ✅ «Добавить сайт» + badge | extension **v1.1.0** |
+| v2.2 | ✅ Blacklist (exclude) | extension **v1.2.0** |
+| v2.3 | ✅ Restart Xray → disable VPN | extension **v1.3.0** |
+| v2.4 | ✅ IP / статус в popup | extension **v1.4.0** |
+| v2.5 | ✅ Профили VLESS | extension **v1.5.0** |
+| v2.6 | ✅ Smart routing | extension **v1.6.0** |
+| v2.7 | ✅ Import / export | extension **v1.7.0** |
+| v2.8 | ✅ Контекстное меню | extension **v1.8.0** |
+| v2.9 | ✅ Onboarding wizard | extension **v1.9.0** |
+| v2.10 | ✅ Тёмная тема | extension **v2.0.0** |
+
+---
+
+## Быстрый старт (v1)
 
 ```powershell
 cd proxy-service
@@ -42,14 +67,6 @@ go build -o browsvpn-proxy.exe ./cmd
 powershell -File update_allowed_origins.ps1 -ExtensionId ВАШ_ID
 ```
 
-Загрузить `extension/` в Chrome → Settings → VLESS + домены → Enable VPN.
+Chrome → загрузить `extension/` → Settings → VLESS + домены → Enable VPN.
 
-Подробнее: [TESTING.md](./TESTING.md)
-
----
-
-## Следующие шаги (Этап 2+)
-
-- System tray
-- Installer / автообновление
-- Import/export конфигурации
+[TESTING.md](./TESTING.md)
