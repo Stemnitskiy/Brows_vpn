@@ -5,13 +5,27 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSettings();
   
   // Save VLESS configuration
-  document.getElementById('saveConfig').addEventListener('click', () => {
+  document.getElementById('saveConfig').addEventListener('click', async () => {
     const vlessConfig = document.getElementById('vlessConfig').value;
     
     if (vlessConfig) {
-      chrome.storage.local.set({ vlessConfig }, () => {
+      try {
+        // Validate VLESS format
+        if (!vlessConfig.startsWith('vless://')) {
+          throw new Error('Invalid VLESS URL format');
+        }
+        
+        // Save to storage and update background
+        await chrome.storage.local.set({ vlessConfig });
+        await chrome.runtime.sendMessage({
+          action: 'updateSettings',
+          vlessConfig: vlessConfig
+        });
+        
         showStatus('configStatus', 'Configuration saved successfully!', 'success');
-      });
+      } catch (error) {
+        showStatus('configStatus', error.message, 'error');
+      }
     } else {
       showStatus('configStatus', 'Please enter a VLESS configuration', 'error');
     }
@@ -21,88 +35,122 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('validateConfig').addEventListener('click', () => {
     const vlessConfig = document.getElementById('vlessConfig').value;
     
-    if (vlessConfig.startsWith('vless://')) {
-      showStatus('configStatus', 'Configuration format looks valid!', 'success');
+    if (vlessConfig) {
+      try {
+        // Basic validation
+        if (!vlessConfig.startsWith('vless://')) {
+          throw new Error('Must start with vless://');
+        }
+        
+        // Check for required parameters
+        const url = new URL(vlessConfig);
+        const requiredParams = ['type', 'security'];
+        const missingParams = requiredParams.filter(param => 
+          !url.searchParams.has(param)
+        );
+        
+        if (missingParams.length > 0) {
+          throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
+        }
+        
+        showStatus('configStatus', 'Configuration format looks valid!', 'success');
+      } catch (error) {
+        showStatus('configStatus', error.message, 'error');
+      }
     } else {
-      showStatus('configStatus', 'Invalid VLESS configuration format', 'error');
+      showStatus('configStatus', 'Please enter a VLESS configuration', 'error');
     }
   });
   
   // Save operation mode
-  document.getElementById('saveMode').addEventListener('click', () => {
+  document.getElementById('saveMode').addEventListener('click', async () => {
     const operationMode = document.getElementById('operationMode').value;
     
-    chrome.storage.local.set({ operationMode }, () => {
-      showStatus('configStatus', 'Operation mode saved successfully!', 'success');
+    await chrome.storage.local.set({ operationMode });
+    await chrome.runtime.sendMessage({
+      action: 'updateSettings',
+      mode: operationMode
     });
+    
+    showStatus('configStatus', 'Operation mode saved successfully!', 'success');
   });
   
   // Save domain list
-  document.getElementById('saveDomains').addEventListener('click', () => {
+  document.getElementById('saveDomains').addEventListener('click', async () => {
     const domainListText = document.getElementById('domainList').value;
-    const domainList = domainListText.split('\n').filter(domain => domain.trim());
+    const domainList = domainListText.split('\n')
+      .map(domain => domain.trim())
+      .filter(domain => domain.length > 0);
     
-    chrome.storage.local.set({ domainList }, () => {
-      showStatus('configStatus', `Saved ${domainList.length} domains`, 'success');
+    await chrome.storage.local.set({ domainList });
+    await chrome.runtime.sendMessage({
+      action: 'updateSettings',
+      domains: domainList
     });
+    
+    showStatus('configStatus', `Saved ${domainList.length} domains`, 'success');
   });
   
   // Clear domain list
-  document.getElementById('clearDomains').addEventListener('click', () => {
+  document.getElementById('clearDomains').addEventListener('click', async () => {
     document.getElementById('domainList').value = '';
-    chrome.storage.local.set({ domainList: [] }, () => {
-      showStatus('configStatus', 'Domain list cleared', 'success');
+    await chrome.storage.local.set({ domainList: [] });
+    await chrome.runtime.sendMessage({
+      action: 'updateSettings',
+      domains: []
     });
+    
+    showStatus('configStatus', 'Domain list cleared', 'success');
   });
   
   // Save connection settings
-  document.getElementById('saveSettings').addEventListener('click', () => {
+  document.getElementById('saveSettings').addEventListener('click', async () => {
     const socksPort = parseInt(document.getElementById('socksPort').value);
     const logLevel = document.getElementById('logLevel').value;
     const autoReconnect = document.getElementById('autoReconnect').checked;
     
-    chrome.storage.local.set({
+    await chrome.storage.local.set({
       socksPort,
       logLevel,
       autoReconnect
-    }, () => {
-      showStatus('configStatus', 'Connection settings saved successfully!', 'success');
     });
+    
+    showStatus('configStatus', 'Connection settings saved successfully!', 'success');
   });
   
-  function loadSettings() {
-    chrome.storage.local.get([
+  async function loadSettings() {
+    const data = await chrome.storage.local.get([
       'vlessConfig',
       'operationMode',
       'domainList',
       'socksPort',
       'logLevel',
       'autoReconnect'
-    ], (result) => {
-      if (result.vlessConfig) {
-        document.getElementById('vlessConfig').value = result.vlessConfig;
-      }
-      
-      if (result.operationMode) {
-        document.getElementById('operationMode').value = result.operationMode;
-      }
-      
-      if (result.domainList && Array.isArray(result.domainList)) {
-        document.getElementById('domainList').value = result.domainList.join('\n');
-      }
-      
-      if (result.socksPort) {
-        document.getElementById('socksPort').value = result.socksPort;
-      }
-      
-      if (result.logLevel) {
-        document.getElementById('logLevel').value = result.logLevel;
-      }
-      
-      if (result.autoReconnect !== undefined) {
-        document.getElementById('autoReconnect').checked = result.autoReconnect;
-      }
-    });
+    ]);
+    
+    if (data.vlessConfig) {
+      document.getElementById('vlessConfig').value = data.vlessConfig;
+    }
+    
+    if (data.operationMode) {
+      document.getElementById('operationMode').value = data.operationMode;
+    }
+    
+    if (data.domainList && Array.isArray(data.domainList)) {
+      document.getElementById('domainList').value = data.domainList.join('\n');
+    }
+    
+    if (data.socksPort) {
+      document.getElementById('socksPort').value = data.socksPort;
+    }
+    
+    if (data.logLevel) {
+      document.getElementById('logLevel').value = data.logLevel;
+    }
+    
+    if (data.autoReconnect !== undefined) {
+      document.getElementById('autoReconnect').checked = data.autoReconnect;
+    }
   }
   
   function showStatus(elementId, message, type) {

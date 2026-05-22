@@ -1,38 +1,30 @@
 // Popup script for Brows VPN
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const statusDiv = document.getElementById('status');
   const statusText = document.getElementById('statusText');
   const enableBtn = document.getElementById('enableBtn');
   const settingsBtn = document.getElementById('settingsBtn');
   
-  // Check current proxy status
-  chrome.runtime.sendMessage({ action: 'getProxyStatus' }, (response) => {
-    if (response && response.status === 'enabled') {
-      updateStatus(true);
-    } else {
-      updateStatus(false);
-    }
-  });
+  // Load initial status
+  await loadProxyStatus();
   
   // Enable/Disable button
-  enableBtn.addEventListener('click', () => {
-    const isEnabled = statusDiv.classList.contains('enabled');
+  enableBtn.addEventListener('click', async () => {
+    const currentStatus = statusDiv.classList.contains('enabled');
     
-    if (isEnabled) {
+    if (currentStatus) {
       // Disable VPN
-      chrome.runtime.sendMessage({ action: 'setProxyMode', mode: 'direct' }, (response) => {
-        if (response && response.success) {
-          updateStatus(false);
-        }
-      });
+      const result = await chrome.runtime.sendMessage({ action: 'disableVPN' });
+      if (result.success) {
+        updateStatus(false);
+      }
     } else {
-      // Enable VPN (will be implemented with VLESS integration)
-      chrome.runtime.sendMessage({ action: 'setProxyMode', mode: 'pac_script' }, (response) => {
-        if (response && response.success) {
-          updateStatus(true);
-        }
-      });
+      // Enable VPN
+      const result = await chrome.runtime.sendMessage({ action: 'enableVPN' });
+      if (result.success) {
+        updateStatus(true);
+      }
     }
   });
   
@@ -40,6 +32,18 @@ document.addEventListener('DOMContentLoaded', () => {
   settingsBtn.addEventListener('click', () => {
     chrome.tabs.create({ url: 'options.html' });
   });
+  
+  async function loadProxyStatus() {
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'getProxyStatus' });
+      if (response) {
+        updateStatus(response.enabled);
+      }
+    } catch (error) {
+      console.error('Failed to get proxy status:', error);
+      updateStatus(false);
+    }
+  }
   
   function updateStatus(enabled) {
     if (enabled) {
