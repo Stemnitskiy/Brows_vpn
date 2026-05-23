@@ -89,6 +89,7 @@ function Get-DefaultExcludePatterns {
         '*.out'
         '*.log'
         '*.tmp'
+        '*.pem'
         'go.work'
         '.DS_Store'
         'Thumbs.db'

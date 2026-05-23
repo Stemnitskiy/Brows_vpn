@@ -77,10 +77,12 @@ go build -o browsvpn-proxy.exe ./cmd
 
 ```powershell
 cd proxy-service
-.\install.ps1 -ExtensionId YOUR_ID -Build
+.\install.bat
 ```
 
-Один скрипт: сборка (опционально), manifest UTF-8 без BOM, registry HKCU.
+`install.bat` → `install.ps1 -Build -OpenExtensionsPage`: собирает Go host, регистрирует manifest с Extension ID из `manifest.key`, открывает `chrome://extensions/`.
+
+**Advanced:** `.\install.ps1 -ExtensionId <override> -Build` — только для отладки (другой unpacked ID).
 
 ---
 

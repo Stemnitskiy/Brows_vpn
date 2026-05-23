@@ -15,15 +15,17 @@ Go binary `browsvpn-proxy.exe` — Chrome Native Messaging host. Принима�
 ## Build & Install
 
 ```powershell
-go build -o browsvpn-proxy.exe ./cmd
-.\install.ps1 -ExtensionId YOUR_CHROME_EXTENSION_ID
+cd proxy-service
+.\install.bat
 ```
 
-Или одной командой (сборка + установка):
+Или из исходников:
 
 ```powershell
-.\install.ps1 -ExtensionId YOUR_CHROME_EXTENSION_ID -Build
+.\install.ps1 -Build
 ```
+
+`-ExtensionId` — только override для debug (другой unpacked ID).
 
 Поместите `xray.exe` + `geoip.dat` + `geosite.dat` в `xray-core/`.
 

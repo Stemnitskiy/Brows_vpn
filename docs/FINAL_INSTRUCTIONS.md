@@ -24,33 +24,21 @@
 
 ---
 
-## Шаг 2: Сборка Go-сервиса
+## Шаг 2–3: Установка native host
 
 ```powershell
 cd D:\Projects\Brows_vpn\proxy-service
-go build -o browsvpn-proxy.exe ./cmd
+.\install.bat
 ```
 
----
+1. Скачайте [Release zip](https://github.com/) и распакуйте *(или используйте git clone)*  
+2. Положите `xray.exe` в `proxy-service\xray-core\`  
+3. Запустите `proxy-service\install.bat`  
+4. В открывшемся `chrome://extensions/` → **Load unpacked** → папка `extension`
 
-## Шаг 3: Native Messaging Host
+Extension ID стабилен для GitHub/unpacked канала (`manifest.key` → `extension/EXTENSION_ID.txt`). Private PEM (`secrets/chrome-extension-github.pem`) **не коммитится** и не попадает в clean archive.
 
-```powershell
-cd D:\Projects\Brows_vpn\proxy-service
-.\install.ps1 -ExtensionId ВАШ_EXTENSION_ID -Build
-```
-
-Скрипт собирает (с `-Build`), проверяет `browsvpn-proxy.exe` и `xray.exe`, пишет `com.browsvpn.host.json` (UTF-8 без BOM) и регистрирует HKCU ключ.
-
-`setup_registry.bat` — тот же установщик (wrapper без аргументов спросит Extension ID).
-
----
-
-## Шаг 4: Загрузка расширения
-
-1. `chrome://extensions/` → Developer mode
-2. Load unpacked → `D:\Projects\Brows_vpn\extension`
-3. Если Extension ID изменился — снова `.\install.ps1 -ExtensionId НОВЫЙ_ID`
+**Override (debug):** `.\install.ps1 -ExtensionId <chrome.runtime.id> -Build`
 
 ---
 

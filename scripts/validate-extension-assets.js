@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { verifyExtensionIdentity } = require('./extension-identity');
 
 const ROOT = path.join(__dirname, '..');
 const EXT = path.join(ROOT, 'extension');
@@ -79,6 +80,19 @@ function main() {
 
   const manifest = readJson(manifestPath);
   ok(`manifest.json version ${manifest.version}`);
+
+  if (!manifest.key) {
+    fail('manifest.json is missing "key" (GitHub/unpacked channel)');
+  } else {
+    ok('manifest.json has key');
+  }
+
+  try {
+    const { extensionId } = verifyExtensionIdentity();
+    ok(`extension identity verified (${extensionId})`);
+  } catch (err) {
+    fail(err.message);
+  }
 
   const serviceWorker = manifest.background && manifest.background.service_worker;
   if (!serviceWorker) {

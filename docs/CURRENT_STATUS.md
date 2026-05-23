@@ -67,7 +67,7 @@
 
 ```powershell
 cd proxy-service
-.\install.ps1 -ExtensionId ВАШ_ID -Build
+.\install.bat
 ```
 
 Chrome → загрузить `extension/` → Settings → VLESS + домены → Enable VPN.

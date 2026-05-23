@@ -70,14 +70,12 @@ go build -o browsvpn-proxy.exe ./cmd
 
 **1.** Убедитесь, что автотесты прошли (см. Часть A).
 
-**2.** Установите native host (manifest + registry):
+**2.** Установите native host:
 
 ```powershell
 cd D:\Projects\Brows_vpn\proxy-service
-.\install.ps1 -ExtensionId ВАШ_EXTENSION_ID -Build
+.\install.bat
 ```
-
-Если `browsvpn-proxy.exe` уже собран, флаг `-Build` можно опустить. Без `-ExtensionId` скрипт спросит ID интерактивно.
 
 **3.** Загрузите расширение:
 - Откройте `chrome://extensions/`
@@ -148,8 +146,8 @@ netstat -an | findstr 10808
 
 | Симптом | Решение |
 |---------|---------|
-| `Native messaging host not found` | `.\install.ps1 -ExtensionId ID -Build`, перезапуск Chrome |
-| `Access to extension denied` | `.\install.ps1 -ExtensionId ID` с правильным 32-символьным ID |
+| `Native messaging host not found` | `.\install.bat`, перезапуск Chrome |
+| `Access to extension denied` | Диагностика → mismatch ID → `.\install.ps1 -ExtensionId <chrome.runtime.id> -Build` |
 | `Failed to start Xray` / port bind | Используйте порт **10808**, не 1080 |
 | `invalid password` в логах | VLESS `pbk` должен быть валидный X25519 public key |
 | VPN enabled, но сайты не проксируются | Проверьте PAC: домен в whitelist, SOCKS port = 10808 |

@@ -51,6 +51,7 @@ temp/
 # Configuration with sensitive data
 config.local.json
 secrets/
+*.pem
 proxy-service/xray-core/xray-config.json
 proxy-service/xray-core/xray-config-*.json
 proxy-service/xray-core/access.log

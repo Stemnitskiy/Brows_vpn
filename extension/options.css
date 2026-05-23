@@ -497,6 +497,35 @@ select.input {
   color: var(--danger);
 }
 
+.diag-identity {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+
+.diag-identity-row {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.diag-identity-row:last-child {
+  margin-bottom: 0;
+}
+
+.diag-label {
+  min-width: 170px;
+  color: var(--text-muted);
+}
+
+.diag-status.ok { color: var(--success); }
+.diag-status.warn { color: var(--warning, #b86e00); }
+.diag-status.error { color: var(--danger); }
+
 .page-footer {
   margin-top: 28px;
   text-align: center;

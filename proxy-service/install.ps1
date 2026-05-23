@@ -1,27 +1,53 @@
 param(
     [string]$ExtensionId,
-    [switch]$Build
+    [ValidateSet('github', 'webstore')]
+    [string]$Channel = 'github',
+    [switch]$Build,
+    [switch]$OpenExtensionsPage
 )
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'native-manifest.ps1')
 
+$Root = Split-Path $PSScriptRoot -Parent
 $manifestPath = Join-Path $PSScriptRoot 'com.browsvpn.host.json'
 $exePath = Join-Path $PSScriptRoot 'browsvpn-proxy.exe'
 $xrayPath = Join-Path $PSScriptRoot 'xray-core\xray.exe'
+$extensionDir = Join-Path $Root 'extension'
 $keyPath = 'HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.browsvpn.host'
+$identityScript = Join-Path $Root 'scripts\extension-identity.js'
 
 Write-Host 'Brows VPN - Native Messaging Host Install' -ForegroundColor Cyan
 Write-Host ''
 
-if (-not $ExtensionId) {
-    $ExtensionId = Read-Host 'Enter Chrome Extension ID (32 characters, a-p)'
+function Resolve-GitHubExtensionId {
+    if (-not (Test-Path $identityScript)) {
+        return $null
+    }
+    $output = & node $identityScript resolve 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        return $null
+    }
+    return ($output | Out-String).Trim()
 }
 
-$ExtensionId = $ExtensionId.Trim().ToLower()
+if ($ExtensionId) {
+    $ExtensionId = $ExtensionId.Trim().ToLower()
+} elseif ($Channel -eq 'github') {
+    $ExtensionId = Resolve-GitHubExtensionId
+    if (-not $ExtensionId) {
+        Write-Host 'ERROR: Extension ID not found.' -ForegroundColor Red
+        Write-Host 'Run scripts/init-extension-identity.ps1 or pass -ExtensionId.' -ForegroundColor Yellow
+        exit 1
+    }
+    Write-Host "Using GitHub/unpacked Extension ID: $ExtensionId"
+} else {
+    Write-Host 'ERROR: -ExtensionId is required for webstore channel.' -ForegroundColor Red
+    exit 1
+}
+
 if ($ExtensionId -notmatch '^[a-p]{32}$') {
     Write-Host 'ERROR: Invalid Extension ID. Expected exactly 32 characters [a-p].' -ForegroundColor Red
-    Write-Host 'Find it at chrome://extensions (Developer mode → Extension ID).'
     exit 1
 }
 
@@ -41,14 +67,13 @@ if ($Build) {
 
 if (-not (Test-Path $exePath)) {
     Write-Host 'ERROR: browsvpn-proxy.exe not found.' -ForegroundColor Red
-    Write-Host 'Run:  .\install.ps1 -ExtensionId YOUR_ID -Build'
+    Write-Host 'Run:  .\install.ps1 -Build'
     exit 1
 }
 
 if (-not (Test-Path $xrayPath)) {
-    Write-Host 'ERROR: xray-core\xray.exe not found.' -ForegroundColor Red
-    Write-Host 'Download Xray-core and place xray.exe in proxy-service\xray-core\'
-    exit 1
+    Write-Host 'WARNING: xray-core\xray.exe not found — native host will register, but VPN enable needs Xray.' -ForegroundColor Yellow
+    Write-Host 'Download from https://github.com/XTLS/Xray-core/releases'
 }
 
 $resolvedExe = (Resolve-Path $exePath).Path
@@ -90,4 +115,14 @@ Write-Host "  Host binary:  $resolvedExe"
 Write-Host "  Manifest:     $manifestPath"
 Write-Host "  Registry:     $keyPath"
 Write-Host ''
-Write-Host 'Next: restart Chrome, then enable VPN from the extension popup.'
+Write-Host 'Next: Load unpacked extension folder, restart Chrome, enable VPN from popup.'
+
+if ($OpenExtensionsPage) {
+    $resolvedExtensionDir = (Resolve-Path $extensionDir).Path
+    Write-Host ''
+    Write-Host 'Load unpacked folder:' -ForegroundColor Cyan
+    Write-Host "  $resolvedExtensionDir"
+    Write-Host 'Expected Extension ID:' -ForegroundColor Cyan
+    Write-Host "  $ExtensionId"
+    Start-Process 'chrome://extensions/'
+}

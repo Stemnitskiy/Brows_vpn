@@ -31,6 +31,18 @@ jobs:
       - run: node --check extension/onboarding.js
       - run: node --check extension/theme.js
       - run: node --check extension/validators.js
+      - run: node scripts/extension-identity.js verify
+      - run: |
+          if git ls-files '*.pem' 'secrets/*.pem' | grep -q .; then
+            echo 'Tracked PEM files are not allowed'
+            git ls-files '*.pem' 'secrets/*.pem'
+            exit 1
+          fi
+      - run: |
+          if git archive HEAD | tar -t | grep -E '\.pem$'; then
+            echo 'Clean git archive must not contain PEM files'
+            exit 1
+          fi
       - run: node scripts/generate-extension-icons.js
       - run: node scripts/validate-extension-assets.js
       - run: node scripts/test-pac-whitelist.js

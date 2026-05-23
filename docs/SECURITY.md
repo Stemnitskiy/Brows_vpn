@@ -62,12 +62,15 @@
 2. **Go host** получает origin вызывающего расширения первым аргументом CLI (`chrome-extension://…/`) и сверяет с manifest.
 3. **Deny-by-default:** если manifest не загружен, JSON битый или `allowed_origins` пуст — chrome caller отклоняется (`Access denied for extension origin`).
 4. **Manifest UTF-8 без BOM** — `native-manifest.ps1`, `install.ps1`.
-5. **Один установщик** — `install.ps1` (или `setup_registry.bat` как wrapper).
+5. **Стабильный GitHub Extension ID** — `manifest.key` + `EXTENSION_ID.txt`; private PEM в `secrets/` (gitignored).
+6. **Установка одной командой** — `proxy-service\install.bat`.
 
 ```powershell
 cd proxy-service
-.\install.ps1 -ExtensionId YOUR_ID -Build
+.\install.bat
 ```
+
+Override только для debug: `.\install.ps1 -ExtensionId <id> -Build`
 
 ID расширения автоматически показывается в **мастере настройки** (`chrome.runtime.id`).
 

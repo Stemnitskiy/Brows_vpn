@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('openImportExportBtn').addEventListener('click', () => openModal('importExportModal'));
   document.getElementById('openDiagnosticsBtn').addEventListener('click', async () => {
     openModal('diagnosticsModal');
+    await refreshIdentityPanel();
     await refreshDiagnostics();
   });
 
@@ -801,6 +802,48 @@ document.addEventListener('DOMContentLoaded', async () => {
     return (report.checks || []).map((c) => `[${c.ok ? 'OK' : c.level}] ${c.id}: ${c.message}`).join('\n');
   }
 
+  async function refreshIdentityPanel() {
+    const runtimeId = chrome.runtime.id;
+    document.getElementById('diagRuntimeId').textContent = runtimeId;
+
+    let expectedId = '—';
+    try {
+      const resp = await fetch(chrome.runtime.getURL('EXTENSION_ID.txt'));
+      if (resp.ok) {
+        expectedId = (await resp.text()).trim();
+      }
+    } catch (_err) {
+      expectedId = '(не найден EXTENSION_ID.txt)';
+    }
+    document.getElementById('diagExpectedId').textContent = expectedId;
+
+    const mismatchEl = document.getElementById('diagIdMismatch');
+    if (expectedId && /^[a-p]{32}$/.test(expectedId) && runtimeId !== expectedId) {
+      mismatchEl.hidden = false;
+      mismatchEl.textContent =
+        `ID не совпадает. Переустановите native host: .\\install.ps1 -ExtensionId ${runtimeId} -Build`;
+    } else {
+      mismatchEl.hidden = true;
+      mismatchEl.textContent = '';
+    }
+
+    const statusEl = document.getElementById('diagNativeHostStatus');
+    statusEl.textContent = 'Проверка…';
+    try {
+      const probe = await chrome.runtime.sendMessage({ action: 'probeNativeHost' });
+      if (probe?.ok) {
+        statusEl.textContent = probe.connected ? 'Подключён' : 'Недоступен';
+        statusEl.className = probe.connected ? 'diag-status ok' : 'diag-status warn';
+      } else {
+        statusEl.textContent = probe?.error || 'Ошибка проверки';
+        statusEl.className = 'diag-status error';
+      }
+    } catch (err) {
+      statusEl.textContent = err.message || 'Ошибка проверки';
+      statusEl.className = 'diag-status error';
+    }
+  }
+
   async function refreshDiagnostics(testHost = '') {
     const result = await chrome.runtime.sendMessage({
       action: 'getDiagnostics',
@@ -818,6 +861,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (location.hash === '#diagnostics') {
     openModal('diagnosticsModal');
+    await refreshIdentityPanel();
     await refreshDiagnostics();
     history.replaceState(null, '', location.pathname);
   }

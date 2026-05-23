@@ -36,12 +36,68 @@ class DiagnosticLog {
     if (level === 'debug' && !debugOn) return;
 
     const prefix = `[BrowsVPN:${component}]`;
-    if (level === 'error') console.error(prefix, message, safeData || '');
-    else if (level === 'warn') console.warn(prefix, message, safeData || '');
+    const dataSuffix = safeData != null ? (typeof safeData === 'string' ? safeData : JSON.stringify(safeData)) : '';
+    if (level === 'error') console.error(prefix, message, dataSuffix);
+    else if (level === 'warn') console.warn(prefix, message, dataSuffix);
     else if (debugOn || level === 'error' || level === 'warn') {
-      console.log(prefix, message, safeData || '');
+      console.log(prefix, message, dataSuffix);
     }
   }
+}
+
+function formatNativeHostError(rawMessage) {
+  const msg = String(rawMessage || '');
+  const runtimeId = chrome.runtime.id;
+
+  if (/forbidden/i.test(msg)) {
+    return (
+      'Chrome отклонил native host (allowed_origins не совпадает с ID расширения). ' +
+      `Текущий ID: ${runtimeId}. ` +
+      'Запустите: cd proxy-service && .\\install.ps1 -Build ' +
+      `(или .\\install.ps1 -ExtensionId ${runtimeId} -Build), затем перезапустите Chrome.`
+    );
+  }
+  if (/specified native messaging host|native messaging host.*not found|native host.*not found/i.test(msg)) {
+    return (
+      'Native host не зарегистрирован. ' +
+      'Запустите: cd proxy-service && .\\install.bat, затем перезапустите Chrome.'
+    );
+  }
+  if (/access denied for extension origin/i.test(msg)) {
+    return (
+      'Go-сервис отклонил origin расширения. ' +
+      `Переустановите: .\\install.ps1 -ExtensionId ${runtimeId} -Build`
+    );
+  }
+  return msg;
+}
+
+function isNativeConnectionError(message) {
+  const msg = String(message || '');
+  if (/xray binary not found|xray\.exe|preflight|vless/i.test(msg)) {
+    return false;
+  }
+  return (
+    /specified native messaging host/i.test(msg) ||
+    (/forbidden/i.test(msg) && /native messaging|extension/i.test(msg)) ||
+    /access denied for extension origin/i.test(msg) ||
+    /native messaging host.*not found/i.test(msg)
+  );
+}
+
+function formatPreflightFailure(checks) {
+  const errors = (checks || []).filter((c) => !c.ok && c.level === 'error');
+  if (!errors.length) {
+    return 'Проверка Go-сервиса не пройдена';
+  }
+  const xray = errors.find((c) => c.id === 'xray_binary' || /xray binary not found/i.test(c.message));
+  if (xray) {
+    return (
+      'Не найден xray.exe. Скачайте Xray-core (Windows 64) и положите файл в ' +
+      'proxy-service\\xray-core\\xray.exe — https://github.com/XTLS/Xray-core/releases'
+    );
+  }
+  return errors.map((c) => c.message).join('; ');
 }
 
 class NativeMessagingClient {
@@ -708,14 +764,13 @@ async function enableVPN(options = {}) {
     try {
       preflightResp = await nativeMessaging.preflight(vpnState.vlessConfig, vpnState.socksPort);
       const pf = preflightResp.payload?.data?.preflight;
-      await DiagnosticLog.add(pf?.ok ? 'info' : 'error', 'preflight', 'Native preflight', pf);
+      await DiagnosticLog.add(pf?.ok ? 'info' : 'error', 'preflight', pf?.ok ? 'Native preflight OK' : 'Native preflight failed', pf);
       if (pf && !pf.ok) {
-        const err = (pf.checks || []).filter((c) => !c.ok && c.level === 'error').map((c) => c.message).join('; ');
-        throw new Error(err || 'Проверка Go-сервиса не пройдена');
+        throw new Error(formatPreflightFailure(pf.checks));
       }
     } catch (e) {
-      if (e.message.includes('Native messaging') || e.message.includes('native')) {
-        throw new Error('Нет связи с Go-сервисом: ' + e.message + '. Соберите: go build -o browsvpn-proxy.exe ./cmd');
+      if (isNativeConnectionError(e.message)) {
+        throw new Error('Нет связи с Go-сервисом: ' + formatNativeHostError(e.message));
       }
       throw e;
     }
@@ -1385,6 +1440,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
       sendResponse({ local, native });
     });
+    return true;
+  }
+
+  if (request.action === 'probeNativeHost') {
+    nativeMessaging
+      .getStatus()
+      .then((response) => {
+        const connected = response?.payload?.status === 'success';
+        sendResponse({ ok: true, connected, data: response?.payload?.data || null });
+      })
+      .catch((error) => {
+        sendResponse({ ok: true, connected: false, error: error.message });
+      });
     return true;
   }
 

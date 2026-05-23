@@ -292,6 +292,12 @@
     <div class="modal-backdrop" data-close="diagnosticsModal"></div>
     <div class="modal-dialog modal-dialog--wide" role="dialog" aria-modal="true" aria-labelledby="diagnosticsModalTitle">
       <h3 class="modal-title" id="diagnosticsModalTitle">Диагностика</h3>
+      <div class="diag-identity" id="diagIdentityPanel">
+        <div class="diag-identity-row"><span class="diag-label">Текущий ID</span><code id="diagRuntimeId">—</code></div>
+        <div class="diag-identity-row"><span class="diag-label">GitHub ID (ожидается)</span><code id="diagExpectedId">—</code></div>
+        <div class="diag-identity-row"><span class="diag-label">Native host</span><span id="diagNativeHostStatus">—</span></div>
+        <div id="diagIdMismatch" class="result-banner error" hidden></div>
+      </div>
       <label class="switch-row">
         <span class="switch">
           <input type="checkbox" id="debugLogging">

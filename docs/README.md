@@ -47,10 +47,12 @@ Browser Extension (MV3)  ←── Native Messaging ──→  Go Proxy Service
 
 ```powershell
 cd proxy-service
-.\install.ps1 -ExtensionId YOUR_ID -Build
+.\install.bat
 ```
 
-Chrome → `chrome://extensions` → Load unpacked → `extension/` → Settings → VLESS → Enable VPN.
+Затем в Chrome: **Load unpacked** → папка `extension/`.
+
+Extension ID для GitHub/unpacked релиза **стабилен** благодаря `manifest.key` (см. `extension/EXTENSION_ID.txt`).
 
 Полная инструкция: [QUICK_START.md](./QUICK_START.md)
 
