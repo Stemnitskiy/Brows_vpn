@@ -139,7 +139,6 @@ async function copyText(text, btn) {
 
 function bindActions() {
   document.getElementById('skipOnboarding').addEventListener('click', () => finishOnboarding(true));
-  document.getElementById('finishOnboarding').addEventListener('click', () => finishOnboarding());
   document.getElementById('openSettingsBtn').addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
   });
