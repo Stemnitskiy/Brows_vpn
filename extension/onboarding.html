@@ -33,12 +33,13 @@
       <h2>Добро пожаловать</h2>
       <p class="step-lead">
         Brows VPN состоит из расширения Chrome и локального Go-сервиса с Xray.
-        Мастер проведёт через сборку, регистрацию Native Messaging и первое подключение.
+        Мастер проведёт через установку native host и первое подключение.
       </p>
       <ul>
-        <li>Нужны: Go, Chrome, VLESS URL от провайдера</li>
-        <li>Все команды выполняются локально на вашем ПК</li>
-        <li>После настройки мастер можно открыть снова из Settings</li>
+        <li>Нужны: Chrome (или Chromium), VLESS URL от провайдера</li>
+        <li>Go 1.21+ — только если собираете Go-сервис из исходников (<code>install.bat</code>)</li>
+        <li>Расширение загружается из папки <code>extension</code>, не из корня проекта</li>
+        <li>После настройки мастер можно открыть снова из Settings → «Мастер»</li>
       </ul>
       <div class="wizard-skip">
         <button type="button" id="skipOnboarding">Пропустить мастер</button>
@@ -46,49 +47,75 @@
     </section>
 
     <section class="card wizard-step" data-step="1">
-      <h2>Шаг 1 — Сборка Go-сервиса</h2>
-      <p class="step-lead">Соберите <code>browsvpn-proxy.exe</code> в каталоге <code>proxy-service</code>.</p>
+      <h2>Шаг 1 — Xray-core</h2>
+      <p class="step-lead">Без <code>xray.exe</code> Go-сервис не сможет поднять VPN-тunnel.</p>
       <ol>
-        <li>Откройте PowerShell в папке проекта</li>
-        <li>Выполните команды ниже</li>
-        <li>Убедитесь, что рядом лежит каталог <code>xray-core</code></li>
+        <li>Скачайте <a href="https://github.com/XTLS/Xray-core/releases" target="_blank" rel="noopener">Xray-windows-64.zip</a></li>
+        <li>Распакуйте <code>xray.exe</code> в каталог <code>proxy-service\xray-core\</code></li>
+        <li>Рядом должны лежать <code>geoip.dat</code> и <code>geosite.dat</code> (уже в репозитории)</li>
       </ol>
       <div class="code-block">
-        <pre id="cmdBuild">cd proxy-service
-go build -o browsvpn-proxy.exe ./cmd</pre>
-        <button type="button" class="btn btn-secondary copy-btn" data-target="cmdBuild">Копировать</button>
+        <pre id="cmdXrayPath">proxy-service\xray-core\xray.exe</pre>
+        <button type="button" class="btn btn-secondary copy-btn" data-target="cmdXrayPath">Копировать путь</button>
       </div>
     </section>
 
     <section class="card wizard-step" data-step="2">
-      <h2>Шаг 2 — Регистрация Native Messaging</h2>
-      <p class="step-lead">Свяжите Chrome с локальным прокси-сервисом через реестр Windows.</p>
+      <h2>Шаг 2 — Go-сервис и Native Messaging</h2>
+      <p class="step-lead">
+        Одна команда собирает <code>browsvpn-proxy.exe</code>, регистрирует native host
+        с Extension ID из <code>manifest.key</code> и открывает <code>chrome://extensions/</code>.
+      </p>
       <ol>
-        <li>Откройте <code>proxy-service</code> в проводнике</li>
-        <li>Запустите <code>setup_registry.bat</code> (достаточно прав текущего пользователя)</li>
-        <li>Дождитесь сообщения об успешной регистрации</li>
+        <li>Откройте PowerShell в папке проекта</li>
+        <li>Запустите <code>install.bat</code> в каталоге <code>proxy-service</code></li>
+        <li>Дождитесь сообщения «Install complete»</li>
+        <li>Полностью перезапустите Chrome</li>
       </ol>
       <div class="code-block">
-        <pre id="cmdRegistry">cd proxy-service
-.\setup_registry.bat</pre>
-        <button type="button" class="btn btn-secondary copy-btn" data-target="cmdRegistry">Копировать</button>
+        <pre id="cmdInstall">cd proxy-service
+.\install.bat</pre>
+        <button type="button" class="btn btn-secondary copy-btn" data-target="cmdInstall">Копировать</button>
       </div>
+      <p class="field-hint">
+        Если <code>browsvpn-proxy.exe</code> уже собран, можно запустить
+        <code>.\install.ps1</code> без <code>-Build</code>.
+      </p>
     </section>
 
     <section class="card wizard-step" data-step="3">
-      <h2>Шаг 3 — ID расширения</h2>
-      <p class="step-lead">Разрешите этому расширению обращаться к Native Messaging host.</p>
-      <p>ID этого расширения:</p>
-      <div class="ext-id-box">
-        <span class="ext-id-value" id="extensionId">…</span>
-        <button type="button" class="btn btn-secondary" id="copyExtensionId">Копировать ID</button>
+      <h2>Шаг 3 — Загрузка расширения</h2>
+      <p class="step-lead">Подключите unpacked-расширение и проверьте связь с Go-сервисом.</p>
+      <ol>
+        <li>На <code>chrome://extensions/</code> включите <strong>Режим разработчика</strong></li>
+        <li><strong>Load unpacked</strong> → выберите папку <code>…\Brows_vpn\extension</code></li>
+        <li>Не выбирайте корень <code>Brows_vpn</code> — там нет <code>manifest.json</code></li>
+      </ol>
+      <div class="diag-identity onboarding-identity" id="onboardingIdentityPanel">
+        <div class="diag-identity-row">
+          <span class="diag-label">Текущий ID</span>
+          <code id="extensionId">…</code>
+          <button type="button" class="btn btn-secondary btn-sm" id="copyExtensionId">Копировать</button>
+        </div>
+        <div class="diag-identity-row">
+          <span class="diag-label">GitHub ID (ожидается)</span>
+          <code id="expectedExtensionId">…</code>
+        </div>
+        <div class="diag-identity-row">
+          <span class="diag-label">Native host</span>
+          <span id="onboardingNativeHostStatus" class="diag-status">—</span>
+        </div>
       </div>
-      <p class="field-hint">Выполните в PowerShell из <code>proxy-service</code> (подставится ID автоматически):</p>
+      <div id="idMismatchHint" class="step-result info" hidden></div>
+      <p class="field-hint">При несовпадении ID (другой unpacked-ключ) выполните override:</p>
       <div class="code-block">
-        <pre id="cmdOrigins">powershell -File update_allowed_origins.ps1 -ExtensionId EXT_ID</pre>
+        <pre id="cmdOrigins">cd proxy-service
+.\install.ps1 -ExtensionId EXT_ID -Build</pre>
         <button type="button" class="btn btn-secondary copy-btn" data-target="cmdOrigins">Копировать</button>
       </div>
-      <p class="field-hint">После этого полностью перезапустите Chrome.</p>
+      <div class="btn-row">
+        <button type="button" class="btn btn-secondary" id="refreshSetupStatusBtn">Проверить снова</button>
+      </div>
     </section>
 
     <section class="card wizard-step" data-step="4">
@@ -121,7 +148,7 @@ go build -o browsvpn-proxy.exe ./cmd</pre>
       <ul>
         <li>Popup: включение/выключение, IP, профили</li>
         <li>Settings: режимы, whitelist, правила, экспорт</li>
-        <li>Диагностика — в разделе Settings → Диагностика</li>
+        <li>Диагностика — Settings → «Диагностика»</li>
       </ul>
       <div class="btn-row">
         <button type="button" class="btn btn-primary" id="finishOnboarding">Завершить</button>

@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await BrowsTheme.loadAndApply();
   renderProgress();
   showStep(0);
-  initExtensionId();
+  await refreshSetupStatus();
   bindNavigation();
   bindCopyButtons();
   bindActions();
@@ -41,6 +41,9 @@ function showStep(index) {
   document.getElementById('wizardNext').textContent =
     currentStep === TOTAL_STEPS - 1 ? 'Готово' : 'Далее';
   updateProgress();
+  if (currentStep === 3) {
+    refreshSetupStatus();
+  }
 }
 
 function bindNavigation() {
@@ -54,12 +57,56 @@ function bindNavigation() {
   });
 }
 
-function initExtensionId() {
-  const id = chrome.runtime.id;
-  document.getElementById('extensionId').textContent = id;
+async function refreshSetupStatus() {
+  const runtimeId = chrome.runtime.id;
+  document.getElementById('extensionId').textContent = runtimeId;
+
+  let expectedId = '—';
+  try {
+    const resp = await fetch(chrome.runtime.getURL('EXTENSION_ID.txt'));
+    if (resp.ok) {
+      expectedId = (await resp.text()).trim();
+    }
+  } catch (_err) {
+    expectedId = '(не найден EXTENSION_ID.txt)';
+  }
+  document.getElementById('expectedExtensionId').textContent = expectedId;
+
+  const mismatchEl = document.getElementById('idMismatchHint');
   const originsCmd = document.getElementById('cmdOrigins');
-  originsCmd.textContent =
-    `powershell -File update_allowed_origins.ps1 -ExtensionId ${id}`;
+  originsCmd.textContent = `cd proxy-service\n.\\install.ps1 -ExtensionId ${runtimeId} -Build`;
+
+  if (expectedId && /^[a-p]{32}$/.test(expectedId) && runtimeId !== expectedId) {
+    mismatchEl.hidden = false;
+    mismatchEl.className = 'step-result error';
+    mismatchEl.textContent =
+      'ID не совпадает с GitHub/unpacked каналом. Переустановите native host командой ниже и перезапустите Chrome.';
+  } else if (expectedId && /^[a-p]{32}$/.test(expectedId)) {
+    mismatchEl.hidden = false;
+    mismatchEl.className = 'step-result success';
+    mismatchEl.textContent =
+      'Extension ID совпадает с ожидаемым — native host настраивается автоматически через install.bat.';
+  } else {
+    mismatchEl.hidden = true;
+    mismatchEl.textContent = '';
+  }
+
+  const statusEl = document.getElementById('onboardingNativeHostStatus');
+  statusEl.textContent = 'Проверка…';
+  statusEl.className = 'diag-status';
+  try {
+    const probe = await chrome.runtime.sendMessage({ action: 'probeNativeHost' });
+    if (probe?.ok) {
+      statusEl.textContent = probe.connected ? 'Подключён' : 'Недоступен';
+      statusEl.className = probe.connected ? 'diag-status ok' : 'diag-status warn';
+    } else {
+      statusEl.textContent = probe?.error || 'Ошибка проверки';
+      statusEl.className = 'diag-status error';
+    }
+  } catch (err) {
+    statusEl.textContent = err.message || 'Ошибка проверки';
+    statusEl.className = 'diag-status error';
+  }
 }
 
 function bindCopyButtons() {
@@ -95,6 +142,9 @@ function bindActions() {
   document.getElementById('finishOnboarding').addEventListener('click', () => finishOnboarding());
   document.getElementById('openSettingsBtn').addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
+  });
+  document.getElementById('refreshSetupStatusBtn').addEventListener('click', () => {
+    refreshSetupStatus();
   });
 
   document.getElementById('validateVlessBtn').addEventListener('click', () => {
