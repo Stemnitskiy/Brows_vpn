@@ -1,8 +1,15 @@
-# Brows VPN
+# Brows VPN — Browser Extension with VLESS Integration
 
-**Brows VPN** — расширение для Chromium (Windows) с локальным Go-сервисом и **Xray-core**. Проксирует трафик браузера через **VLESS Reality + gRPC**: выборочно (whitelist), глобально или с исключениями.
+> **Статус:** v2 завершён (extension **v2.2.1**), hardening P0–P2 ✅  
+> **Безопасность:** [SECURITY.md](docs/SECURITY.md)
 
-**Версия:** 2.2.1 · **Платформа:** Windows 11 · **Браузер:** Chrome / Edge / Brave
+---
+
+## Overview
+
+Brows VPN — расширение Chromium (Windows) для выборочного или полного проксирования через **VLESS Reality + gRPC**. Локальный **Go native host** управляет **Xray-core**; маршрутизация в браузере — **PAC** (`chrome.proxy`).
+
+**Extension ID (GitHub/unpacked):** `faiiagkkabmhbiafomcbopfgeddmobdl` — стабилен благодаря `manifest.key` (см. `extension/EXTENSION_ID.txt`).
 
 ---
 
@@ -10,61 +17,28 @@
 
 | Способ | Ссылка |
 |--------|--------|
-| **Clean archive (рекомендуется)** | [Brows_vpn-v2.2.1-clean.zip](https://github.com/Stemnitskiy/Brows_vpn/releases/download/v2.2.1/Brows_vpn-v2.2.1-clean.zip) |
+| Clean archive | [Brows_vpn-v2.2.1-clean.zip](https://github.com/Stemnitskiy/Brows_vpn/releases/download/v2.2.1/Brows_vpn-v2.2.1-clean.zip) |
 | Все релизы | [Releases](https://github.com/Stemnitskiy/Brows_vpn/releases) |
 
-Архив содержит исходники без `*.exe`, secrets и локальных путей. После распаковки см. `ARCHIVE_README.txt`.
+---
+
+## Key Features (реализовано)
+
+| Функция | Статус |
+|---------|--------|
+| Selective / global / global_exclude / disabled | ✅ |
+| VLESS профили, import/export | ✅ |
+| Native Messaging ↔ Go ↔ Xray | ✅ |
+| Preflight, health, recovery (3× → disable) | ✅ |
+| Smart routing, context menu, onboarding | ✅ |
+| Dark theme, diagnostics page | ✅ |
+| Security hardening P0–P2 | ✅ v2.2.1 |
+
+**Не в scope (v3):** system tray, multi-protocol, Firefox/Edge.
 
 ---
 
-## Быстрый старт
-
-### 1. Xray-core
-
-1. Скачайте [Xray-windows-64.zip](https://github.com/XTLS/Xray-core/releases)
-2. Положите `xray.exe` в `proxy-service\xray-core\`
-
-### 2. Native host (Go-сервис)
-
-```powershell
-cd proxy-service
-.\install.bat
-```
-
-Скрипт собирает `browsvpn-proxy.exe`, регистрирует Native Messaging host и открывает `chrome://extensions/`.
-
-### 3. Расширение Chrome
-
-1. `chrome://extensions/` → **Режим разработчика**
-2. **Load unpacked** → папка **`extension`** (не корень репозитория)
-3. Перезапустите Chrome
-
-**Extension ID** для GitHub/unpacked стабилен: `faiiagkkabmhbiafomcbopfgeddmobdl` (см. `extension/EXTENSION_ID.txt`, `manifest.key`).
-
-### 4. Настройка и включение
-
-1. Иконка расширения → **Settings** (или мастер первого запуска)
-2. Вставьте **VLESS URL** → сохраните
-3. Добавьте домены в whitelist (режим *Selective*)
-4. Popup → **Enable VPN**
-
----
-
-## Возможности
-
-| Функция | Описание |
-|---------|----------|
-| Selective / Global / Global exclude | PAC-маршрутизация через `chrome.proxy` |
-| VLESS профили | Несколько конфигов, import/export |
-| Native Messaging | Chrome ↔ Go ↔ Xray, без ручного запуска exe |
-| Preflight & health | Проверки перед включением, auto-reconnect |
-| Smart routing | Правила маршрутизации с приоритетом |
-| Onboarding wizard | Пошаговая первичная настройка |
-| Diagnostics | ID расширения, native host, логи |
-
----
-
-## Архитектура
+## Architecture
 
 ```
 Browser Extension (MV3)  ←── Native Messaging ──→  Go Proxy Service
@@ -74,33 +48,60 @@ Browser Extension (MV3)  ←── Native Messaging ──→  Go Proxy Service
    SOCKS5 127.0.0.1:10808  ←──────────────────────────┘
 ```
 
-Подробнее: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+Подробнее: [ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
 ---
 
-## Структура проекта
+## Quick Start
+
+### 1. Xray-core
+
+1. Скачайте [Xray-windows-64.zip](https://github.com/XTLS/Xray-core/releases)
+2. Положите `xray.exe` в `proxy-service\xray-core\`
+3. Рядом должны быть `geoip.dat` и `geosite.dat` (уже в репозитории)
+
+### 2. Go-сервис и Native Messaging
+
+```powershell
+cd proxy-service
+.\install.bat
+```
+
+Скрипт собирает `browsvpn-proxy.exe`, регистрирует native host с Extension ID из `manifest.key` и открывает `chrome://extensions/`. После установки **перезапустите Chrome**.
+
+**Debug override** (если unpacked ID другой): `.\install.ps1 -ExtensionId <chrome.runtime.id> -Build`
+
+### 3. Расширение Chrome
+
+1. `chrome://extensions/` → **Режим разработчика**
+2. **Load unpacked** → папка **`extension/`** (не корень репозитория)
+3. Проверка: Settings → **Диагностика** → Native host: **Подключён**
+
+### 4. VLESS и включение VPN
+
+1. Settings (или мастер первого запуска) → вставьте **VLESS URL** → сохраните
+2. Добавьте домены в whitelist (режим *Selective*)
+3. Popup → **Enable VPN**
+
+Полная инструкция: [QUICK_START.md](docs/QUICK_START.md) · [FINAL_INSTRUCTIONS.md](docs/FINAL_INSTRUCTIONS.md)
+
+---
+
+## Project Structure
 
 ```
 Brows_vpn/
-├── extension/          ← Load unpacked в Chrome
-├── proxy-service/      ← Go native host + install.bat
-│   └── xray-core/      ← xray.exe (скачать отдельно)
-├── docs/               ← документация
-└── scripts/            ← тесты и утилиты
+├── docs/                 # Документация
+├── extension/            # ← Load unpacked в Chrome (manifest v2.2.1)
+├── proxy-service/        # Go native host + install.bat + xray-core/
+└── scripts/              # PAC / import tests, extension identity
 ```
+
+Legacy Censor Tracker код: `extension/src/` — **не используется** в текущей сборке.
 
 ---
 
-## Разработка
-
-### Требования
-
-- Windows 11
-- Go 1.21+
-- Chromium (последний stable)
-- Node.js — только для скриптов тестов (`scripts/`)
-
-### Тесты
+## Testing
 
 ```powershell
 cd proxy-service
@@ -113,13 +114,7 @@ node scripts/test-pac-whitelist.js
 node scripts/test-settings-import-export.js
 ```
 
-### Clean archive (для релиза)
-
-```powershell
-.\make-clean-archive.bat
-```
-
-Результат: `dist\Brows_vpn-<branch>-<hash>-clean.zip`
+См. [TESTING.md](docs/TESTING.md)
 
 ---
 
@@ -127,36 +122,25 @@ node scripts/test-settings-import-export.js
 
 | Симптом | Решение |
 |---------|---------|
-| «Файл манифеста отсутствует» | Load unpacked → папка **`extension/`**, не корень проекта |
+| «Файл манифеста отсутствует» | Load unpacked → **`extension/`**, не корень проекта |
 | Native host not found | `proxy-service\install.bat`, перезапуск Chrome |
-| Access forbidden | ID не совпадает → Settings → Диагностика → `install.ps1 -ExtensionId <id> -Build` |
+| Access forbidden | ID не совпадает → `install.ps1 -ExtensionId <id> -Build` |
 | xray.exe не найден | Скачайте Xray-core в `proxy-service\xray-core\` |
-| VPN enabled, IP не меняется | Проверьте whitelist и SOCKS-порт (по умолчанию **10808**) |
-
-Полнее: [docs/TESTING.md](docs/TESTING.md) · [docs/SECURITY.md](docs/SECURITY.md)
 
 ---
 
-## Документация
+## Documentation Index
 
-| Документ | Описание |
-|----------|----------|
-| [docs/QUICK_START.md](docs/QUICK_START.md) | Подробный старт для разработчика |
-| [docs/CURRENT_STATUS.md](docs/CURRENT_STATUS.md) | Текущий статус и версии |
-| [docs/SECURITY.md](docs/SECURITY.md) | Модель безопасности Native Messaging |
-| [docs/API.md](docs/API.md) | Протокол extension ↔ Go |
-| [docs/FINAL_INSTRUCTIONS.md](docs/FINAL_INSTRUCTIONS.md) | Полная инструкция установки |
-
----
-
-## Безопасность
-
-- VLESS credentials хранятся локально в `chrome.storage` — **не коммитьте** реальные URL в git
-- Private key расширения (`secrets/*.pem`) — в `.gitignore`, не входит в clean archive
-- Go host проверяет `allowed_origins` (fail-closed)
+| Документ | Назначение |
+|----------|------------|
+| [CURRENT_STATUS.md](docs/CURRENT_STATUS.md) | Прогресс по версиям |
+| [QUICK_START.md](docs/QUICK_START.md) | Подробный старт |
+| [SECURITY.md](docs/SECURITY.md) | Модель угроз, P0–P2 |
+| [API.md](docs/API.md) | Native messaging протокол |
+| [TESTING.md](docs/TESTING.md) | Ручное и автоматическое тестирование |
 
 ---
 
 ## License
 
-Компоненты third-party: [Xray-core](https://github.com/XTLS/Xray-core) (MPL-2.0). См. `proxy-service/xray-core/LICENSE`.
+Third-party: [Xray-core](https://github.com/XTLS/Xray-core) (MPL-2.0). См. `proxy-service/xray-core/LICENSE`.
