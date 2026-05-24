@@ -112,3 +112,20 @@ func TestOriginGateEmptyCallerAllow(t *testing.T) {
 		t.Fatal("empty caller should pass for non-Chrome pipes")
 	}
 }
+
+func TestLoadAllowedOriginsPrefersLocalManifest(t *testing.T) {
+	dir := t.TempDir()
+	writeManifest(t, dir, `{"allowed_origins":["`+otherExtensionOrigin+`"]}`)
+	localPath := filepath.Join(dir, "com.browsvpn.host.local.json")
+	if err := os.WriteFile(localPath, []byte(`{"allowed_origins":["`+testExtensionOrigin+`"]}`), 0600); err != nil {
+		t.Fatalf("write local manifest: %v", err)
+	}
+
+	origins, err := loadAllowedOriginsFromDir(dir)
+	if err != nil {
+		t.Fatalf("loadAllowedOriginsFromDir: %v", err)
+	}
+	if len(origins) != 1 || origins[0] != testExtensionOrigin {
+		t.Fatalf("expected local manifest origin, got %v", origins)
+	}
+}

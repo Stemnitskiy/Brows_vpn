@@ -37,8 +37,10 @@ cd D:\Projects\Brows_vpn\proxy-service
 4. В открывшемся `chrome://extensions/` → **Load unpacked** → папка `extension`
 
 Extension ID стабилен для GitHub/unpacked канала (`manifest.key` → `extension/EXTENSION_ID.txt`). Private PEM (`secrets/chrome-extension-github.pem`) **не коммитится** и не попадает в clean archive.
+Локальный native manifest создаётся установщиком как `proxy-service\com.browsvpn.host.local.json`.
 
 **Override (debug):** `.\install.ps1 -ExtensionId <chrome.runtime.id> -Build`
+**Release check:** `.\install.ps1 -Release -Build`
 
 ---
 
@@ -56,7 +58,7 @@ Extension ID стабилен для GitHub/unpacked канала (`manifest.key
 
 1. Popup → **Enable VPN**
 2. Chrome автоматически запустит native host (Go exe)
-3. Xray поднимет SOCKS5 на `127.0.0.1:1080`
+3. Xray поднимет SOCKS5 на `127.0.0.1:10808`
 4. Проверьте сайт из whitelist
 
 > **Не нужно** вручную запускать `browsvpn-proxy.exe --native-messaging` — Chrome запускает host сам (после исправления entry point).
@@ -91,7 +93,7 @@ Popup → **Disable VPN** → proxy сброшен, Xray остановлен.
 
 ### Proxy error / no connection
 
-- `netstat -an | findstr 1080` — порт слушает?
+- `netstat -an | findstr 10808` — порт слушает?
 - Firewall блокирует localhost?
 
 ---

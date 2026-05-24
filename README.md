@@ -1,7 +1,7 @@
 # Brows VPN — Browser Extension with VLESS Integration
 
 > **Статус:** v2 завершён (extension **v2.2.1**), hardening P0–P2 ✅  
-> **Безопасность:** [SECURITY.md](docs/SECURITY.md)
+> **Безопасность:** [SECURITY.md](docs/SECURITY.md) · **Release gate:** [RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)
 
 ---
 
@@ -67,9 +67,10 @@ cd proxy-service
 .\install.bat
 ```
 
-Скрипт собирает `browsvpn-proxy.exe`, регистрирует native host с Extension ID из `manifest.key` и открывает `chrome://extensions/`. После установки **перезапустите Chrome**.
+Скрипт собирает `browsvpn-proxy.exe`, создаёт локальный `com.browsvpn.host.local.json`, регистрирует native host с Extension ID из `manifest.key` и открывает `chrome://extensions/`. После установки **перезапустите Chrome**.
 
 **Debug override** (если unpacked ID другой): `.\install.ps1 -ExtensionId <chrome.runtime.id> -Build`
+**Release check:** `.\install.ps1 -Release -Build` требует `xray-core\xray.exe.sha256`.
 
 ### 3. Расширение Chrome
 
@@ -84,6 +85,18 @@ cd proxy-service
 3. Popup → **Enable VPN**
 
 Полная инструкция: [QUICK_START.md](docs/QUICK_START.md) · [FINAL_INSTRUCTIONS.md](docs/FINAL_INSTRUCTIONS.md)
+
+Перед публикацией:
+
+```powershell
+powershell -File .\scripts\release-gate.ps1
+```
+
+Локальный repair:
+
+```powershell
+powershell -File .\scripts\check-env.ps1 -Fix -Release
+```
 
 ---
 

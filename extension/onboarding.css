@@ -84,6 +84,11 @@
   font-size: 11px;
 }
 
+.code-block--compact {
+  margin-top: 6px;
+  padding: 8px 10px;
+}
+
 .ext-id-box {
   display: flex;
   align-items: center;
@@ -179,4 +184,65 @@
   flex-shrink: 0;
   padding: 4px 10px;
   font-size: 11px;
+}
+
+.setup-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 18px;
+}
+
+.setup-status-item {
+  min-height: 72px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.setup-status-name {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.setup-status-item strong {
+  display: block;
+  color: var(--text-heading);
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.setup-status-item[data-status="ok"] {
+  border-color: var(--success-border);
+  background: var(--success-soft);
+}
+
+.setup-status-item[data-status="ok"] strong {
+  color: var(--success-text);
+}
+
+.setup-status-item[data-status="error"] {
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
+}
+
+.setup-status-item[data-status="error"] strong {
+  color: var(--danger);
+}
+
+.repair-command {
+  margin-top: 8px;
+}
+
+.setup-action-row {
+  margin-top: 12px;
+}
+
+@media (max-width: 560px) {
+  .setup-status-grid {
+    grid-template-columns: 1fr;
+  }
 }

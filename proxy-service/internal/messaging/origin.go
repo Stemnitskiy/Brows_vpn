@@ -96,7 +96,15 @@ func loadAllowedOriginsFromManifest() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	path := filepath.Join(filepath.Dir(exe), "com.browsvpn.host.json")
+	return loadAllowedOriginsFromDir(filepath.Dir(exe))
+}
+
+func loadAllowedOriginsFromDir(dir string) ([]string, error) {
+	localPath := filepath.Join(dir, "com.browsvpn.host.local.json")
+	if _, err := os.Stat(localPath); err == nil {
+		return loadAllowedOriginsFromPath(localPath)
+	}
+	path := filepath.Join(dir, "com.browsvpn.host.json")
 	return loadAllowedOriginsFromPath(path)
 }
 

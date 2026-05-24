@@ -176,7 +176,7 @@ fetch('http://localhost:49490/api/...', {
 ```
 C++ Application → Configuration File → Xray-core Process
                                         ↓
-                                SOCKS5 Proxy (127.0.0.1:1080)
+                                SOCKS5 Proxy (127.0.0.1:10808)
 ```
 
 ### Xray Configuration

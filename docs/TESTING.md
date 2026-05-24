@@ -10,11 +10,15 @@
 ```powershell
 cd D:\Projects\Brows_vpn\proxy-service
 go test ./...
+go vet ./...
 go build -o browsvpn-proxy.exe ./cmd
 go run ..\scripts\test-local-integration.go
-powershell -File ..\scripts\check-env.ps1
+powershell -File ..\scripts\check-env.ps1 -Release
 
 cd ..
+node --check extension\background.js
+node --check extension\options.js
+node --check extension\onboarding.js
 node scripts/test-pac-whitelist.js
 node scripts/test-settings-import-export.js
 node scripts/validate-extension-assets.js
@@ -27,10 +31,12 @@ CI: `.github/workflows/test.yml` (Go + Node scripts на push/PR).
 | Тест | Проверка |
 |------|----------|
 | `go test ./...` | VLESS parser, native messaging protocol, VPN handler, auth redact |
+| `go vet ./...` | Статический анализ Go |
 | `test-pac-whitelist.js` | PAC selective, global_exclude, smart routing |
 | `test-settings-import-export.js` | Export/import, applySettingsUpdate, safe export |
-| `test-local-integration.go` | Subprocess NM: get_status → enable_vpn → порт 10808 → disable_vpn |
-| `check-env.ps1` | Go, Node, exe, xray, manifest |
+| `test-local-integration.go` | Safe subprocess NM: get_status → find_free_port → preflight → health_check → disable_vpn |
+| `test-local-integration.go -live` | Live subprocess NM: enable_vpn → SOCKS port → disable_vpn |
+| `check-env.ps1 -Release` | Go, Node, exe, xray SHA256, manifest, registry, secret/runtime scan |
 | Settings → **Run Full Preflight** | Extension + native checks без Enable |
 | Health monitor (1 мин при VPN ON) | Xray, SOCKS, PAC, auto-reconnect |
 
@@ -62,7 +68,7 @@ go build -o browsvpn-proxy.exe ./cmd
 # или: build.bat
 ```
 
-Файл должен существовать по пути из `com.browsvpn.host.json`. Без него Enable VPN молча не работает.
+Локальный manifest должен существовать по пути `proxy-service\com.browsvpn.host.local.json`. Его создаёт `install.ps1`; без него Enable VPN не сможет подключить native host.
 
 ---
 

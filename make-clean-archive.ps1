@@ -20,6 +20,9 @@
 .PARAMETER IncludeBuildOutputs
   Include browsvpn-proxy.exe, xray.exe, wintun.dll, etc.
 
+.PARAMETER SkipVerify
+  Do not verify the final archive contents. Verification is enabled by default.
+
 .EXAMPLE
   .\make-clean-archive.ps1
 
@@ -33,7 +36,9 @@ param(
 
     [string]$OutputPath = '',
 
-    [switch]$IncludeBuildOutputs
+    [switch]$IncludeBuildOutputs,
+
+    [switch]$SkipVerify
 )
 
 Set-StrictMode -Version Latest
@@ -95,6 +100,9 @@ function Get-DefaultExcludePatterns {
         'Thumbs.db'
         'desktop.ini'
         'config.local.json'
+        'prepare-github-clean*.ps1'
+        'run-github-clean*.bat'
+        '*_CLEAN_REPORT.md'
         'proxy-service/xray-core/xray-config.json'
         'proxy-service/xray-core/xray-config-*.json'
         'proxy-service/xray-core/access.log'
@@ -278,6 +286,13 @@ function Invoke-SanitizeTree {
             }
     }
 
+    Get-ChildItem -Path $TreeRoot -Recurse -File -Include 'prepare-github-clean*.ps1', 'run-github-clean*.bat', '*_CLEAN_REPORT.md' -ErrorAction SilentlyContinue |
+        ForEach-Object {
+            $rel = $_.FullName.Substring($TreeRoot.Length).TrimStart('\', '/')
+            Remove-Item $_.FullName -Force
+            $removed.Add($rel)
+        }
+
     Write-ArchiveReadme -TargetDir $TreeRoot -Meta $Meta
     return $removed
 }
@@ -313,6 +328,86 @@ function New-ZipFromDirectory {
     if (Test-Path $ZipPath) { Remove-Item $ZipPath -Force }
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     [System.IO.Compression.ZipFile]::CreateFromDirectory($SourceDir, $ZipPath, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+}
+
+function Test-CleanArchive {
+    param([string]$ZipPath)
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $ZipPath).Path)
+    $findings = [System.Collections.Generic.List[string]]::new()
+
+    $entryBlockPatterns = @(
+        '(^|/)secrets/',
+        '\.pem$',
+        'xray-config.*\.json$',
+        '(^|/)access\.log$',
+        '(^|/)error\.log$',
+        'com\.browsvpn\.host\.local\.json$',
+        '(^|/)prepare-github-clean.*\.ps1$',
+        '(^|/)run-github-clean.*\.bat$',
+        '_CLEAN_REPORT\.md$'
+    )
+    if (-not $IncludeBuildOutputs) {
+        $entryBlockPatterns += '\.(exe|dll|so|dylib)$'
+    }
+
+    $secretPatterns = @(
+        'ghp_[A-Za-z0-9_]{20,}',
+        'github_pat_[A-Za-z0-9_]{20,}',
+        'sk-[A-Za-z0-9]{20,}',
+        'BEGIN (RSA |OPENSSH |)PRIVATE KEY',
+        'vless://[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}@'
+    )
+    $textExts = @('.txt', '.md', '.json', '.js', '.ps1', '.bat', '.html', '.css', '.yml', '.yaml', '.xml', '.toml', '.ini')
+
+    try {
+        foreach ($entry in $zip.Entries) {
+            $name = $entry.FullName -replace '\\', '/'
+            foreach ($pattern in $entryBlockPatterns) {
+                if ($name -match $pattern) {
+                    $findings.Add("forbidden entry: $name")
+                    break
+                }
+            }
+
+            if ($entry.Length -gt 2097152) {
+                continue
+            }
+            $ext = [IO.Path]::GetExtension($name).ToLowerInvariant()
+            if ($textExts -notcontains $ext -and [IO.Path]::GetFileName($name).ToLowerInvariant() -ne '.gitignore') {
+                continue
+            }
+
+            $reader = New-Object IO.StreamReader($entry.Open())
+            try {
+                $lineNo = 0
+                while (($line = $reader.ReadLine()) -ne $null) {
+                    $lineNo += 1
+                    $isExampleLine = $line -match 'example\.(com|org)|550e8400-e29b-41d4-a716-446655440000|11111111-1111-1111-1111-111111111111|BASE64_PUBLIC_KEY'
+                    foreach ($pattern in $secretPatterns) {
+                        if ($line -match $pattern) {
+                            if ($pattern -like 'vless://*' -and $isExampleLine) {
+                                continue
+                            }
+                            $findings.Add("secret pattern in ${name}:${lineNo}")
+                            break
+                        }
+                    }
+                }
+            } finally {
+                $reader.Dispose()
+            }
+        }
+    } finally {
+        $zip.Dispose()
+    }
+
+    if ($findings.Count -gt 0) {
+        throw "Clean archive verification failed:`n - $($findings -join "`n - ")"
+    }
+
+    Write-Host "Archive verification: OK" -ForegroundColor Green
 }
 
 function New-GitArchive {
@@ -452,6 +547,10 @@ if ($Mode -eq 'git') {
     $result = New-GitArchive -ZipPath $OutputPath -Meta $meta
 } else {
     $result = New-WorktreeArchive -ZipPath $OutputPath -Meta $meta
+}
+
+if (-not $SkipVerify) {
+    Test-CleanArchive -ZipPath $result.ZipPath
 }
 
 $sizeMb = [math]::Round((Get-Item $result.ZipPath).Length / 1MB, 2)

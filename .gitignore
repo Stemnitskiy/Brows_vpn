@@ -38,10 +38,21 @@ desktop.ini
 # Project specific
 extension/base/
 proxy-service/base/
+proxy-service/apps/
+proxy-service/packages/
+proxy-service/docs/
+proxy-service/PATCH_MANIFEST.md
+proxy-service/com.browsvpn.host.local.json
+proxy-service/browsvpn-proxy.exe
+proxy-service/browsvpn-proxy.exe~
+prepare-github-clean*.ps1
+run-github-clean*.bat
+*_CLEAN_REPORT.md
 
 # Logs
 logs/
 *.log
+proxy-service/logs/
 
 # Temporary files
 tmp/
@@ -57,3 +68,4 @@ proxy-service/xray-core/xray-config-*.json
 proxy-service/xray-core/access.log
 proxy-service/xray-core/error.log
 proxy-service/xray-core/wintun.dll
+proxy-service/xray-core/xray

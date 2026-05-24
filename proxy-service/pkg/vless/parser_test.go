@@ -56,8 +56,14 @@ func TestToXrayConfigRealityClient(t *testing.T) {
 	if strings.Contains(raw, "shortIds") {
 		t.Fatalf("client config must not contain shortIds")
 	}
-  if !strings.Contains(raw, `"password"`) {
+	if !strings.Contains(raw, `"password"`) {
 		t.Fatalf("client config must contain password (Xray 26+ Reality client field)")
+	}
+	if strings.Contains(raw, `"access"`) || strings.Contains(raw, "access.log") {
+		t.Fatalf("client config must not enable access log by default")
+	}
+	if !strings.Contains(raw, "error.log") {
+		t.Fatalf("client config must keep error log enabled")
 	}
 	if strings.Contains(raw, `"inboundTag"`) && strings.Contains(raw, `"socks-in"`) {
 		// routing rule present

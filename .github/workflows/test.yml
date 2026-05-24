@@ -16,6 +16,7 @@ jobs:
         with:
           go-version: '1.21'
       - run: go test ./...
+      - run: go vet ./...
 
   extension-scripts:
     runs-on: ubuntu-latest
@@ -31,6 +32,7 @@ jobs:
       - run: node --check extension/onboarding.js
       - run: node --check extension/theme.js
       - run: node --check extension/validators.js
+      - run: node -e "JSON.parse(require('fs').readFileSync('extension/manifest.json', 'utf8'))"
       - run: node scripts/extension-identity.js verify
       - run: |
           if git ls-files '*.pem' 'secrets/*.pem' | grep -q .; then
@@ -47,3 +49,18 @@ jobs:
       - run: node scripts/validate-extension-assets.js
       - run: node scripts/test-pac-whitelist.js
       - run: node scripts/test-settings-import-export.js
+      - run: npm audit --omit=dev --audit-level=moderate
+        working-directory: extension
+
+  windows-preflight:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-env.ps1 -Ci
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File .\make-clean-archive.ps1 -Mode git -OutputPath dist\ci-clean.zip

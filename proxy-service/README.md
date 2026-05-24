@@ -26,8 +26,10 @@ cd proxy-service
 ```
 
 `-ExtensionId` — только override для debug (другой unpacked ID).
+`-Release` — строгая установка: требует `xray-core\xray.exe.sha256`.
 
 Поместите `xray.exe` + `geoip.dat` + `geosite.dat` в `xray-core/`.
+Реальный native manifest создаётся как `com.browsvpn.host.local.json` и регистрируется в HKCU.
 
 ---
 
@@ -56,7 +58,7 @@ proxy-service/
 ├── internal/xray/           # Process + integrity check
 ├── internal/singleinstance/ # Windows mutex
 ├── pkg/vless/               # VLESS → Xray JSON
-├── com.browsvpn.host.json   # Native host manifest (edit path + origins)
+├── com.browsvpn.host.json   # Template; install creates com.browsvpn.host.local.json
 └── xray-core/               # xray.exe (external download)
 ```
 

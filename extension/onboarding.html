@@ -58,6 +58,15 @@
         <pre id="cmdXrayPath">proxy-service\xray-core\xray.exe</pre>
         <button type="button" class="btn btn-secondary copy-btn" data-target="cmdXrayPath">Копировать путь</button>
       </div>
+      <div class="btn-row btn-row--wrap">
+        <button type="button" class="btn btn-secondary external-link" data-url="https://github.com/XTLS/Xray-core/releases">Открыть Xray releases</button>
+        <button type="button" class="btn btn-ghost copy-btn" data-target="cmdXrayHash">Копировать SHA256 command</button>
+      </div>
+      <div class="code-block code-block--compact" hidden>
+        <pre id="cmdXrayHash">cd proxy-service
+Get-FileHash .\xray-core\xray.exe -Algorithm SHA256
+Set-Content -Encoding ASCII .\xray-core\xray.exe.sha256 "&lt;SHA256_FROM_PREVIOUS_COMMAND&gt;"</pre>
+      </div>
     </section>
 
     <section class="card wizard-step" data-step="2">
@@ -76,6 +85,12 @@
         <pre id="cmdInstall">cd proxy-service
 .\install.bat</pre>
         <button type="button" class="btn btn-secondary copy-btn" data-target="cmdInstall">Копировать</button>
+      </div>
+      <div class="btn-row btn-row--wrap">
+        <button type="button" class="btn btn-secondary copy-btn" data-target="cmdRepairInstall">Копировать repair install</button>
+      </div>
+      <div class="code-block code-block--compact" hidden>
+        <pre id="cmdRepairInstall">powershell -File .\scripts\check-env.ps1 -Fix -Release</pre>
       </div>
       <p class="field-hint">
         Если <code>browsvpn-proxy.exe</code> уже собран, можно запустить
@@ -115,6 +130,7 @@
       </div>
       <div class="btn-row">
         <button type="button" class="btn btn-secondary" id="refreshSetupStatusBtn">Проверить снова</button>
+        <button type="button" class="btn btn-secondary" id="openExtensionsPageBtn">Открыть chrome://extensions</button>
       </div>
     </section>
 
@@ -135,11 +151,41 @@
     <section class="card wizard-step" data-step="5">
       <h2>Шаг 5 — Проверка и включение VPN</h2>
       <p class="step-lead">Убедитесь, что Go-сервис отвечает, затем включите VPN.</p>
+      <div class="setup-status-grid" id="setupStatusGrid">
+        <div class="setup-status-item" data-status="unknown" id="statusExtension">
+          <span class="setup-status-name">Extension ID</span>
+          <strong>Ожидает проверки</strong>
+        </div>
+        <div class="setup-status-item" data-status="unknown" id="statusNative">
+          <span class="setup-status-name">Native host</span>
+          <strong>Ожидает проверки</strong>
+        </div>
+        <div class="setup-status-item" data-status="unknown" id="statusXray">
+          <span class="setup-status-name">Xray</span>
+          <strong>Ожидает проверки</strong>
+        </div>
+        <div class="setup-status-item" data-status="unknown" id="statusVless">
+          <span class="setup-status-name">VLESS</span>
+          <strong>Ожидает проверки</strong>
+        </div>
+      </div>
       <div class="btn-row btn-row--wrap">
         <button type="button" class="btn btn-secondary" id="runPreflightOnboarding">Preflight-проверка</button>
         <button type="button" class="btn btn-primary" id="enableVpnOnboarding">Включить VPN</button>
       </div>
       <div id="testStepResult" class="step-result" hidden></div>
+      <div id="repairCommandBlock" class="repair-command" hidden>
+        <p class="field-hint">Команда исправления:</p>
+        <div class="code-block">
+          <pre id="repairCommand">cd proxy-service
+.\install.bat</pre>
+          <button type="button" class="btn btn-secondary copy-btn" data-target="repairCommand">Копировать</button>
+        </div>
+      </div>
+      <div class="btn-row btn-row--wrap setup-action-row" id="setupActionRow" hidden>
+        <button type="button" class="btn btn-secondary" id="setupActionPrimary">Действие</button>
+        <button type="button" class="btn btn-ghost" id="setupActionSecondary" hidden>Дополнительно</button>
+      </div>
     </section>
 
     <section class="card wizard-step" data-step="6">

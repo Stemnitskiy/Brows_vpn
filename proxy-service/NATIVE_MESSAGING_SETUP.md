@@ -1,15 +1,56 @@
 # Native Messaging Host Setup
 
-> **Обновлено:** 2026-05-22  
-> **Статус:** ⚠️ Текущая конфигурация **не работает** с Chrome. Исправление — Этап 1 [IMPLEMENTATION_ROADMAP.md](../docs/IMPLEMENTATION_ROADMAP.md).
+> Обновлено: 2026-05-24
+> Статус: актуальный production flow.
 
 ---
 
-## Как должно быть (целевая конфигурация)
+## Установка
 
-### 1. Host manifest JSON
+```powershell
+cd proxy-service
+.\install.bat
+```
 
-Файл `com.browsvpn.host.json` (будет создан на Этапе 1):
+`install.bat` вызывает:
+
+```powershell
+.\install.ps1 -Build -OpenExtensionsPage
+```
+
+Скрипт:
+
+- собирает `browsvpn-proxy.exe`;
+- определяет Extension ID из `extension\manifest.json`;
+- создаёт локальный `com.browsvpn.host.local.json`;
+- пишет registry key в HKCU;
+- открывает `chrome://extensions/`.
+
+Для release-проверки:
+
+```powershell
+.\install.ps1 -Release -Build
+```
+
+`-Release` требует `xray-core\xray.exe.sha256`.
+
+---
+
+## Host Manifest
+
+В репозитории хранится только шаблон:
+
+```text
+proxy-service\com.browsvpn.host.json
+```
+
+Рабочий локальный manifest создаётся установщиком:
+
+```text
+proxy-service\com.browsvpn.host.local.json
+```
+
+Пример сгенерированного файла:
 
 ```json
 {
@@ -18,82 +59,58 @@
   "path": "D:\\Projects\\Brows_vpn\\proxy-service\\browsvpn-proxy.exe",
   "type": "stdio",
   "allowed_origins": [
-    "chrome-extension://YOUR_EXTENSION_ID/"
+    "chrome-extension://faiiagkkabmhbiafomcbopfgeddmobdl/"
   ]
 }
 ```
 
-### 2. Windows Registry
+---
 
-```
+## Windows Registry
+
+```text
 HKEY_CURRENT_USER\Software\Google\Chrome\NativeMessagingHosts\com.browsvpn.host
-  (Default) = D:\Projects\Brows_vpn\proxy-service\com.browsvpn.host.json
+  (Default) = D:\Projects\Brows_vpn\proxy-service\com.browsvpn.host.local.json
 ```
 
-**Важно:** значение по умолчанию — путь к **JSON-файлу**, не к exe.
-
-### 3. Протокол
-
-Chrome использует **length-prefixed** сообщения:
-- 4 байта (uint32 little-endian) — длина JSON
-- JSON UTF-8
-
-Текущий `host.go` читает построчный JSON — **несовместимо**.
-
-### 4. Entry point
-
-Chrome запускает exe **без аргументов**. `main.go` должен по умолчанию входить в native messaging mode.
+Значение по умолчанию должно указывать на JSON manifest, не на exe.
 
 ---
 
-## Текущее состояние (legacy — не использовать)
+## Security Gate
 
-`setup_registry.bat` записывает путь к `browsvpn-proxy.exe` напрямую — **неверно**.
-
-Ручной запуск `browsvpn-proxy.exe --native-messaging` — временный workaround для отладки, не production flow.
+Chrome проверяет `allowed_origins`. Go host дополнительно читает локальный manifest и сверяет caller origin. Если local manifest отсутствует, битый или не содержит текущий Extension ID, команды отклоняются.
 
 ---
 
-## Сборка
+## Проверка
 
 ```powershell
-cd D:\Projects\Brows_vpn\proxy-service
-go build -o browsvpn-proxy.exe ./cmd
+powershell -File ..\scripts\check-env.ps1
 ```
 
----
-
-## Получение Extension ID
-
-1. Load unpacked extension в `chrome://extensions/`
-2. Скопируйте ID (например `abcdefghijklmnopqrstuvwxyzabcdef`)
-3. Добавьте в `allowed_origins`: `chrome-extension://abcdefghijklmnopqrstuvwxyzabcdef/`
-
----
-
-## Проверка (после Этапа 1)
-
-1. Service worker extension → Console
-2. `chrome.runtime.connectNative('com.browsvpn.host')` — без ошибки
-3. `get_status` command → JSON response
-
----
-
-## Удаление
+Автоисправление безопасных локальных проблем:
 
 ```powershell
-proxy-service\uninstall_registry.bat
+powershell -File ..\scripts\check-env.ps1 -Fix -Release
 ```
+
+`-Fix` пересобирает/перерегистрирует native host только если локальный exe, manifest или registry неполные; также создаёт `xray.exe.sha256`, если `xray.exe` уже лежит на месте.
+
+В Chrome:
+
+1. `chrome://extensions/`
+2. Load unpacked → `extension\`
+3. Перезапустить Chrome
+4. Settings → Diagnostics → Native host: connected
 
 ---
 
 ## Troubleshooting
 
-| Ошибка | Причина |
-|--------|---------|
-| Host not found | Registry или manifest path неверны |
-| Access denied | `allowed_origins` не содержит extension ID |
-| Disconnect immediately | Неверный протокол в host.go |
-| Host exits | main.go не в NM mode без args |
-
-См. [docs/CURRENT_STATUS.md](../docs/CURRENT_STATUS.md).
+| Ошибка | Причина | Исправление |
+|--------|---------|-------------|
+| Host not found | Registry или manifest path неверны | `.\install.ps1 -Build` |
+| Access denied | `allowed_origins` не содержит Extension ID | `.\install.ps1 -ExtensionId <id> -Build` |
+| Xray unavailable | Нет `xray-core\xray.exe` | Скачать Xray-core release |
+| Release install fails | Нет/не совпадает `xray.exe.sha256` | Сгенерировать SHA256 sidecar |

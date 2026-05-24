@@ -32,11 +32,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   document.getElementById('debugLogging').addEventListener('change', async (e) => {
-    await chrome.storage.local.set({ debugLogging: e.target.checked });
-    await chrome.runtime.sendMessage({
+    const checkbox = e.target;
+    if (checkbox.checked && !(await requestDebugRequestPermission())) {
+      checkbox.checked = false;
+      await chrome.runtime.sendMessage({ action: 'setDebugLogging', enabled: false });
+      showToast('Разрешение на трассировку запросов не выдано', 'error');
+      return;
+    }
+
+    const result = await chrome.runtime.sendMessage({
       action: 'setDebugLogging',
-      enabled: e.target.checked
+      enabled: checkbox.checked
     });
+    if (result?.success === false) {
+      checkbox.checked = false;
+      showToast(result.error || 'Не удалось включить подробные логи', 'error');
+      return;
+    }
+    showToast(checkbox.checked ? 'Подробные логи включены' : 'Подробные логи выключены', 'success');
   });
 
   document.getElementById('refreshLogsBtn').addEventListener('click', () => refreshDiagnostics());
@@ -198,6 +211,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   document.getElementById('downloadExportBtn').addEventListener('click', async () => {
+    if (!window.confirm('JSON будет содержать VLESS URL. Не публикуйте этот файл. Продолжить скачивание?')) {
+      return;
+    }
     await downloadSettingsExport(true);
   });
 
@@ -360,6 +376,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       toast.className = 'toast';
       toast.textContent = '';
     }, 4500);
+  }
+
+  async function requestDebugRequestPermission() {
+    if (!chrome.permissions?.request) {
+      return false;
+    }
+    try {
+      return await chrome.permissions.request({
+        permissions: ['webRequest'],
+        origins: ['http://*/*', 'https://*/*']
+      });
+    } catch (_) {
+      return false;
+    }
   }
 
   function setButtonLoading(btn, loading) {

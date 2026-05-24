@@ -1,7 +1,7 @@
 # Brows VPN - API Documentation
 
 > **Обновлено:** 2026-05-22  
-> **Статус:** спецификация целевого API; в коде реализованы только `enable_vpn`, `disable_vpn`, `get_status` (handler — заглушка).  
+> **Статус:** актуальная Native Messaging спецификация v2.2.1. Реализованы `enable_vpn`, `disable_vpn`, `get_status`, `preflight`, `health_check`, `get_logs`, `find_free_port`.
 > **План:** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)
 
 ## Native Messaging Protocol
@@ -52,7 +52,7 @@ Enables VPN connection with specified configuration.
     "config": {
       "vless_url": "vless://uuid@address:port?type=grpc&encryption=none&serviceName=vpn&security=reality&pbk=publicKey&fp=chrome&sni=serverName&sid=sessionId&spx=%2F#name",
       "mode": "selective",
-      "socks_port": 1080,
+      "socks_port": 10808,
       "dns_override": true,
       "log_level": "info"
     }
@@ -70,9 +70,9 @@ Enables VPN connection with specified configuration.
   "payload": {
     "status": "success",
     "data": {
-      "vpn_status": "connecting",
+      "vpn_status": "enabled",
       "config_id": "config_12345",
-      "socks_proxy": "127.0.0.1:1080"
+      "socks_proxy": "127.0.0.1:10808"
     }
   }
 }

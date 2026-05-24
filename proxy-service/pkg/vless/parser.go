@@ -8,20 +8,20 @@ import (
 
 // VLESSConfig represents parsed VLESS configuration
 type VLESSConfig struct {
-	UUID         string
-	Address      string
-	Port         int
-	Type         string
-	Encryption   string
-	ServiceName  string
-	Authority    string
-	Security     string
-	PublicKey    string
-	Fingerprint  string
-	SNI          string
-	ShortID      string
-	SPIX         string
-	Name         string
+	UUID        string
+	Address     string
+	Port        int
+	Type        string
+	Encryption  string
+	ServiceName string
+	Authority   string
+	Security    string
+	PublicKey   string
+	Fingerprint string
+	SNI         string
+	ShortID     string
+	SPIX        string
+	Name        string
 }
 
 // ParseVLESSURL parses VLESS URL format
@@ -33,7 +33,7 @@ func ParseVLESSURL(vlessURL string) (*VLESSConfig, error) {
 
 	// Remove vless:// prefix
 	urlStr := strings.TrimPrefix(vlessURL, "vless://")
-	
+
 	// Split fragment
 	parts := strings.Split(urlStr, "#")
 	configPart := parts[0]
@@ -154,7 +154,6 @@ func (c *VLESSConfig) ToXrayConfig(socksPort int) map[string]interface{} {
 	return map[string]interface{}{
 		"log": map[string]interface{}{
 			"loglevel": "info",
-			"access":   "access.log",
 			"error":    "error.log",
 		},
 		"inbounds": []map[string]interface{}{

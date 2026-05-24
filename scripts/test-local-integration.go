@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/binary"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net"
@@ -24,19 +25,90 @@ type nmMessage struct {
 }
 
 func main() {
-	root, _ := os.Getwd()
-	if filepath.Base(root) != "proxy-service" {
-		root = filepath.Join(root, "proxy-service")
-	}
+	live := flag.Bool("live", false, "also run enable_vpn, check SOCKS port, and disable_vpn")
+	rootFlag := flag.String("root", "", "repository root or proxy-service directory")
+	exeFlag := flag.String("exe", "", "path to browsvpn-proxy.exe")
+	flag.Parse()
 
-	exe := filepath.Join(root, "browsvpn-proxy.exe")
+	root := resolveProxyRoot(*rootFlag)
+	exe := *exeFlag
+	if exe == "" {
+		exe = filepath.Join(root, "browsvpn-proxy.exe")
+	}
 	if _, err := os.Stat(exe); err != nil {
-		fail("browsvpn-proxy.exe not found — run: go build -o browsvpn-proxy.exe ./cmd")
+		fail("browsvpn-proxy.exe not found: %s. Run: cd proxy-service; .\\install.ps1 -Build", exe)
 	}
 
 	fmt.Println("=== Brows VPN Local Integration Test ===")
+	if *live {
+		fmt.Println("Mode: live enable/disable")
+	} else {
+		fmt.Println("Mode: safe smoke (use -live for enable_vpn)")
+	}
 	fmt.Println()
 
+	host := startHost(exe)
+	defer host.stop()
+
+	fmt.Print("[1/5] get_status ... ")
+	resp := host.send("t1", map[string]interface{}{"command": "get_status"})
+	data := assertSuccess(resp)
+	assertString(data, "vpn_status", "disabled")
+	fmt.Println("OK")
+
+	fmt.Print("[2/5] find_free_port ... ")
+	resp = host.send("t2", map[string]interface{}{
+		"command":        "find_free_port",
+		"preferred_port": float64(10808),
+	})
+	data = assertSuccess(resp)
+	port := intFromData(data, "port")
+	if port <= 0 || port > 65535 {
+		fail("invalid free port: %v", data["port"])
+	}
+	fmt.Printf("OK (%d)\n", port)
+
+	fmt.Print("[3/5] preflight ... ")
+	resp = host.send("t3", map[string]interface{}{
+		"command": "preflight",
+		"config": map[string]interface{}{
+			"vless_url":  testVLESS,
+			"socks_port": float64(port),
+		},
+	})
+	data = assertSuccess(resp)
+	assertReportOK(data, "preflight")
+	fmt.Println("OK")
+
+	fmt.Print("[4/5] health_check ... ")
+	resp = host.send("t4", map[string]interface{}{"command": "health_check"})
+	data = assertSuccess(resp)
+	if _, ok := data["runtime"].(map[string]interface{}); !ok {
+		fail("missing runtime report: %v", data)
+	}
+	fmt.Println("OK")
+
+	fmt.Print("[5/5] disable_vpn ... ")
+	resp = host.send("t5", map[string]interface{}{"command": "disable_vpn"})
+	data = assertSuccess(resp)
+	assertString(data, "vpn_status", "disabled")
+	fmt.Println("OK")
+
+	if *live {
+		runLiveEnableDisable(host, port)
+	}
+
+	fmt.Println()
+	fmt.Println("All local integration checks passed.")
+}
+
+type hostProcess struct {
+	cmd    *exec.Cmd
+	stdin  io.WriteCloser
+	stdout io.ReadCloser
+}
+
+func startHost(exe string) *hostProcess {
 	cmd := exec.Command(exe)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -51,57 +123,22 @@ func main() {
 	if err := cmd.Start(); err != nil {
 		fail("start host: %v", err)
 	}
-	defer func() {
-		_ = stdin.Close()
-		_ = cmd.Process.Kill()
-		_ = cmd.Wait()
-	}()
-
-	// 1. get_status
-	fmt.Print("[1/4] get_status ... ")
-	resp := send(stdin, stdout, nmMessage{
-		Version: "1.0", MessageType: "command", MessageID: "t1",
-		Payload: map[string]interface{}{"command": "get_status"},
-	})
-	assertSuccess(resp, "disabled")
-	fmt.Println("OK")
-
-	// 2. enable_vpn
-	fmt.Print("[2/4] enable_vpn ... ")
-	resp = send(stdin, stdout, nmMessage{
-		Version: "1.0", MessageType: "command", MessageID: "t2",
-		Payload: map[string]interface{}{
-			"command": "enable_vpn",
-			"config": map[string]interface{}{
-				"vless_url":  testVLESS,
-				"socks_port": float64(10808),
-			},
-		},
-	})
-	assertSuccess(resp, "enabled")
-	fmt.Println("OK")
-
-	// 3. SOCKS port listening
-	fmt.Print("[3/4] SOCKS 127.0.0.1:10808 listening ... ")
-	if !waitForPort("127.0.0.1:10808", 5*time.Second) {
-		fail("port 10808 not listening after enable_vpn")
-	}
-	fmt.Println("OK")
-
-	// 4. disable_vpn
-	fmt.Print("[4/4] disable_vpn ... ")
-	resp = send(stdin, stdout, nmMessage{
-		Version: "1.0", MessageType: "command", MessageID: "t3",
-		Payload: map[string]interface{}{"command": "disable_vpn"},
-	})
-	assertSuccess(resp, "disabled")
-	fmt.Println("OK")
-
-	fmt.Println()
-	fmt.Println("All local integration tests passed.")
+	return &hostProcess{cmd: cmd, stdin: stdin, stdout: stdout}
 }
 
-func send(stdin io.Writer, stdout io.Reader, msg nmMessage) map[string]interface{} {
+func (h *hostProcess) stop() {
+	_ = h.stdin.Close()
+	_ = h.cmd.Process.Kill()
+	_ = h.cmd.Wait()
+}
+
+func (h *hostProcess) send(messageID string, payload map[string]interface{}) map[string]interface{} {
+	msg := nmMessage{
+		Version:     "1.0",
+		MessageType: "command",
+		MessageID:   messageID,
+		Payload:     payload,
+	}
 	data, err := json.Marshal(msg)
 	if err != nil {
 		fail("marshal: %v", err)
@@ -109,32 +146,81 @@ func send(stdin io.Writer, stdout io.Reader, msg nmMessage) map[string]interface
 
 	header := make([]byte, 4)
 	binary.LittleEndian.PutUint32(header, uint32(len(data)))
-	if _, err := stdin.Write(append(header, data...)); err != nil {
+	if _, err := h.stdin.Write(append(header, data...)); err != nil {
 		fail("write stdin: %v", err)
 	}
 
-	respBytes := readFrame(stdout)
+	respBytes := readFrame(h.stdout, 15*time.Second)
 	var resp nmMessage
 	if err := json.Unmarshal(respBytes, &resp); err != nil {
 		fail("parse response: %v\nraw: %s", err, string(respBytes))
 	}
+	if resp.MessageID != messageID {
+		fail("expected message_id=%s, got %s", messageID, resp.MessageID)
+	}
 	return resp.Payload
 }
 
-func readFrame(r io.Reader) []byte {
-	hdr := make([]byte, 4)
-	if _, err := io.ReadFull(r, hdr); err != nil {
-		fail("read header: %v", err)
-	}
+func readFrame(r io.Reader, timeout time.Duration) []byte {
+	hdr := readExact(r, 4, timeout)
 	n := binary.LittleEndian.Uint32(hdr)
-	body := make([]byte, n)
-	if _, err := io.ReadFull(r, body); err != nil {
-		fail("read body: %v", err)
+	if n == 0 || n > 1024*1024 {
+		fail("invalid frame length: %d", n)
 	}
-	return body
+	return readExact(r, int(n), timeout)
 }
 
-func assertSuccess(payload map[string]interface{}, wantVPNStatus string) {
+func readExact(r io.Reader, n int, timeout time.Duration) []byte {
+	type result struct {
+		data []byte
+		err  error
+	}
+	ch := make(chan result, 1)
+	go func() {
+		buf := make([]byte, n)
+		_, err := io.ReadFull(r, buf)
+		ch <- result{data: buf, err: err}
+	}()
+
+	select {
+	case res := <-ch:
+		if res.err != nil {
+			fail("read frame: %v", res.err)
+		}
+		return res.data
+	case <-time.After(timeout):
+		fail("timeout waiting for native host response")
+	}
+	return nil
+}
+
+func runLiveEnableDisable(host *hostProcess, port int) {
+	fmt.Print("[live 1/3] enable_vpn ... ")
+	resp := host.send("live1", map[string]interface{}{
+		"command": "enable_vpn",
+		"config": map[string]interface{}{
+			"vless_url":  testVLESS,
+			"socks_port": float64(port),
+		},
+	})
+	data := assertSuccess(resp)
+	assertString(data, "vpn_status", "enabled")
+	fmt.Println("OK")
+
+	fmt.Printf("[live 2/3] SOCKS 127.0.0.1:%d listening ... ", port)
+	if !waitForPort(fmt.Sprintf("127.0.0.1:%d", port), 5*time.Second) {
+		fail("port %d not listening after enable_vpn", port)
+	}
+	fmt.Println("OK")
+
+	fmt.Print("[live 3/3] disable_vpn ... ")
+	resp = host.send("live2", map[string]interface{}{"command": "disable_vpn"})
+	data = assertSuccess(resp)
+	assertString(data, "vpn_status", "disabled")
+	fmt.Println("OK")
+}
+
+func assertSuccess(payload map[string]interface{}) map[string]interface{} {
 	if payload["status"] != "success" {
 		fail("expected success, got: %v", payload)
 	}
@@ -142,9 +228,57 @@ func assertSuccess(payload map[string]interface{}, wantVPNStatus string) {
 	if data == nil {
 		fail("missing data in response: %v", payload)
 	}
-	if data["vpn_status"] != wantVPNStatus {
-		fail("expected vpn_status=%s, got %v", wantVPNStatus, data["vpn_status"])
+	return data
+}
+
+func assertString(data map[string]interface{}, key, want string) {
+	if data[key] != want {
+		fail("expected %s=%s, got %v", key, want, data[key])
 	}
+}
+
+func assertReportOK(data map[string]interface{}, key string) {
+	report, _ := data[key].(map[string]interface{})
+	if report == nil {
+		fail("missing %s report: %v", key, data)
+	}
+	if report["ok"] != true {
+		fail("%s failed: %v", key, report)
+	}
+}
+
+func intFromData(data map[string]interface{}, key string) int {
+	switch v := data[key].(type) {
+	case float64:
+		return int(v)
+	case int:
+		return v
+	default:
+		fail("missing or invalid %s: %v", key, data[key])
+	}
+	return 0
+}
+
+func resolveProxyRoot(rootFlag string) string {
+	if rootFlag != "" {
+		root, err := filepath.Abs(rootFlag)
+		if err != nil {
+			fail("resolve root: %v", err)
+		}
+		if filepath.Base(root) != "proxy-service" {
+			root = filepath.Join(root, "proxy-service")
+		}
+		return root
+	}
+
+	root, err := os.Getwd()
+	if err != nil {
+		fail("getwd: %v", err)
+	}
+	if filepath.Base(root) != "proxy-service" {
+		root = filepath.Join(root, "proxy-service")
+	}
+	return root
 }
 
 func waitForPort(addr string, timeout time.Duration) bool {

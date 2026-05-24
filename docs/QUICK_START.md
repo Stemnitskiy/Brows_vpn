@@ -80,9 +80,16 @@ cd proxy-service
 .\install.bat
 ```
 
-`install.bat` → `install.ps1 -Build -OpenExtensionsPage`: собирает Go host, регистрирует manifest с Extension ID из `manifest.key`, открывает `chrome://extensions/`.
+`install.bat` → `install.ps1 -Build -OpenExtensionsPage`: собирает Go host, создаёт локальный `com.browsvpn.host.local.json`, регистрирует manifest с Extension ID из `manifest.key`, открывает `chrome://extensions/`.
 
 **Advanced:** `.\install.ps1 -ExtensionId <override> -Build` — только для отладки (другой unpacked ID).
+**Release:** `.\install.ps1 -Release -Build` — требует `xray-core\xray.exe.sha256`.
+
+Если установка сломалась, запустите из корня проекта:
+
+```powershell
+powershell -File .\scripts\check-env.ps1 -Fix -Release
+```
 
 ---
 

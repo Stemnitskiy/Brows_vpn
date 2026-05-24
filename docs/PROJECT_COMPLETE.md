@@ -1,7 +1,7 @@
 # Brows VPN — Статус проекта (архив)
 
-> **📦 Архивный документ.** Актуальный статус: [CURRENT_STATUS.md](./CURRENT_STATUS.md) (extension **v2.2.1**, v2 complete).  
-> Ниже — историческая запись аудита 2026-05-22, когда docs показывали ~40% MVP.
+> **📦 Архивный документ.** Актуальный статус: [CURRENT_STATUS.md](./CURRENT_STATUS.md), [SECURITY.md](./SECURITY.md), [RELEASE_CHECKLIST.md](./RELEASE_CHECKLIST.md).
+> Ниже — историческая запись аудита 2026-05-22. Не использовать как описание текущей реализации.
 
 ---
 
@@ -11,7 +11,7 @@
 |-------------------------------------|------|
 | «95% готов к тестированию» | ~40% — интеграция не работает |
 | «Native messaging реализован» | Протокол и registry неверны |
-| «Xray-core интеграция» | Controller есть, handler — заглушка |
+| «Xray-core интеграция» | Историческая запись; в v2.2.1 handler реализован |
 | «Autoreconnect» | Только partial в extension |
 | «3 шага до запуска» | Недостаточно — нужен этап 1 roadmap |
 
@@ -20,7 +20,7 @@
 ## Что уже есть (фундамент)
 
 - Chrome Extension MV3 с popup, options, background
-- Go-сервис: VLESS parser, Xray controller, messaging stub, tray stub, logging
+- Go-сервис: VLESS parser, Xray controller, Native Messaging host, Xray lifecycle, logging
 - Документация архитектуры и API
 - Анализ Censor Tracker
 - `setup_registry.bat` (требует исправления)

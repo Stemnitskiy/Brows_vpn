@@ -91,7 +91,7 @@ src/
     "unlimitedStorage", # Unlimited storage
     "webNavigation"     # Navigation events
   ],
-  "host_permissions": ["<all_urls>"]
+  "optional_host_permissions": ["http://*/*", "https://*/*"]
 }
 ```
 
@@ -327,7 +327,7 @@ getPacScript({ domains, proxyServerURI, proxyServerProtocol })
   autoReconnect: boolean,              // Auto-reconnect flag
   logLevel: 'debug' | 'info' | 'warning' | 'error',
   domainCategories: object[],         // Domain groups
-  proxyPort: number,                   // SOCKS5 port (default 1080)
+  proxyPort: number,                   // SOCKS5 port (default 10808)
   connectionStatistics: object         // Usage statistics
 }
 ```

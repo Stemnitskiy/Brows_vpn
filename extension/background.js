@@ -568,6 +568,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 let webRequestListener = null;
+const DEBUG_REQUEST_PERMISSION = {
+  permissions: ['webRequest'],
+  origins: ['http://*/*', 'https://*/*']
+};
 
 function pacRouteForHost(host, mode, domains) {
   return BrowsValidators.pacRouteForHost(
@@ -701,15 +705,40 @@ async function loadSettings() {
   if (data.autoReconnect !== undefined) vpnState.autoReconnect = data.autoReconnect;
   if (data.debugLogging !== undefined) vpnState.debugLogging = data.debugLogging;
 
-  updateWebRequestDebug(vpnState.debugLogging);
+  await updateWebRequestDebug(vpnState.debugLogging);
 }
 
-function updateWebRequestDebug(enabled) {
-  if (webRequestListener) {
+async function hasDebugRequestPermission() {
+  if (!chrome.permissions?.contains) {
+    return false;
+  }
+  try {
+    return await chrome.permissions.contains(DEBUG_REQUEST_PERMISSION);
+  } catch (_) {
+    return false;
+  }
+}
+
+async function updateWebRequestDebug(enabled) {
+  if (webRequestListener && chrome.webRequest?.onBeforeRequest) {
     chrome.webRequest.onBeforeRequest.removeListener(webRequestListener);
     webRequestListener = null;
   }
-  if (!enabled) return;
+  if (!enabled) return { enabled: false };
+
+  if (!chrome.webRequest?.onBeforeRequest) {
+    vpnState.debugLogging = false;
+    await chrome.storage.local.set({ debugLogging: false });
+    await DiagnosticLog.add('warn', 'request', 'Debug request tracing unavailable');
+    return { enabled: false, error: 'Нет доступа к webRequest API' };
+  }
+
+  if (!(await hasDebugRequestPermission())) {
+    vpnState.debugLogging = false;
+    await chrome.storage.local.set({ debugLogging: false });
+    await DiagnosticLog.add('warn', 'request', 'Debug request tracing permission is not granted');
+    return { enabled: false, error: 'Разрешение на трассировку запросов не выдано' };
+  }
 
   webRequestListener = (details) => {
     if (!vpnState.enabled) return;
@@ -728,6 +757,7 @@ function updateWebRequestDebug(enabled) {
     webRequestListener,
     { urls: ['http://*/*', 'https://*/*'] }
   );
+  return { enabled: true };
 }
 
 async function enableVPN(options = {}) {
@@ -954,7 +984,7 @@ async function getDiagnostics(testHost = '') {
     push('Xray запущен', data.xray_running);
     push('Xray error.log (хвост, redacted)', data.error_log || '(нет)');
     push('Go app.log (хвост, redacted)', data.app_log || '(нет)');
-    push('Примечание', 'access.log и полный PAC намеренно скрыты. Включите debug для подробных логов.');
+    push('Примечание', 'Xray access.log отключён по умолчанию; полный PAC намеренно скрыт. Debug-логирование пишет только redacted данные расширения.');
   } catch (e) {
     push('Логи Go-сервиса', `ОШИБКА: ${e.message}`);
   }
@@ -1468,9 +1498,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === 'setDebugLogging') {
     vpnState.debugLogging = !!request.enabled;
-    chrome.storage.local.set({ debugLogging: vpnState.debugLogging }).then(() => {
-      updateWebRequestDebug(vpnState.debugLogging);
-      sendResponse({ success: true });
+    chrome.storage.local.set({ debugLogging: vpnState.debugLogging }).then(async () => {
+      const debugState = await updateWebRequestDebug(vpnState.debugLogging);
+      if (request.enabled && !debugState.enabled) {
+        sendResponse({ success: false, error: debugState.error || 'Debug logging permission denied' });
+        return;
+      }
+      sendResponse({ success: true, enabled: debugState.enabled });
     });
     return true;
   }

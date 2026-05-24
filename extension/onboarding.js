@@ -4,7 +4,13 @@ const TOTAL_STEPS = 7;
 let currentStep = 0;
 
 document.addEventListener('DOMContentLoaded', async () => {
-  await BrowsTheme.loadAndApply();
+  try {
+    if (typeof BrowsTheme !== 'undefined') {
+      await BrowsTheme.loadAndApply();
+    }
+  } catch (_err) {
+    // Local browser previews do not expose chrome.storage.
+  }
   renderProgress();
   showStep(0);
   await refreshSetupStatus();
@@ -12,6 +18,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindCopyButtons();
   bindActions();
 });
+
+function hasExtensionRuntime() {
+  return typeof chrome !== 'undefined' && chrome.runtime && chrome.storage;
+}
 
 function renderProgress() {
   const container = document.getElementById('wizardProgress');
@@ -44,6 +54,9 @@ function showStep(index) {
   if (currentStep === 3) {
     refreshSetupStatus();
   }
+  if (currentStep === 5) {
+    runOnboardingPreflight({ silent: true });
+  }
 }
 
 function bindNavigation() {
@@ -58,6 +71,16 @@ function bindNavigation() {
 }
 
 async function refreshSetupStatus() {
+  if (!hasExtensionRuntime()) {
+    document.getElementById('extensionId').textContent = '(preview mode)';
+    document.getElementById('expectedExtensionId').textContent = '(доступно после загрузки расширения)';
+    document.getElementById('cmdOrigins').textContent = 'cd proxy-service\n.\\install.ps1 -ExtensionId <EXTENSION_ID> -Build';
+    const statusEl = document.getElementById('onboardingNativeHostStatus');
+    statusEl.textContent = 'Проверяется только в Chrome extension context';
+    statusEl.className = 'diag-status warn';
+    return;
+  }
+
   const runtimeId = chrome.runtime.id;
   document.getElementById('extensionId').textContent = runtimeId;
 
@@ -127,6 +150,7 @@ function bindCopyButtons() {
 async function copyText(text, btn) {
   try {
     await navigator.clipboard.writeText(text.trim());
+    if (!btn) return;
     const prev = btn.textContent;
     btn.textContent = 'Скопировано';
     setTimeout(() => {
@@ -140,11 +164,23 @@ async function copyText(text, btn) {
 function bindActions() {
   document.getElementById('skipOnboarding').addEventListener('click', () => finishOnboarding(true));
   document.getElementById('openSettingsBtn').addEventListener('click', () => {
-    chrome.runtime.openOptionsPage();
+    if (hasExtensionRuntime()) {
+      chrome.runtime.openOptionsPage();
+    } else {
+      showToast('Settings доступны после загрузки расширения в Chrome.', 'error');
+    }
   });
   document.getElementById('refreshSetupStatusBtn').addEventListener('click', () => {
     refreshSetupStatus();
   });
+  document.getElementById('openExtensionsPageBtn').addEventListener('click', () => {
+    openUrl('chrome://extensions/');
+  });
+  document.querySelectorAll('.external-link').forEach((btn) => {
+    btn.addEventListener('click', () => openUrl(btn.dataset.url));
+  });
+  document.getElementById('setupActionPrimary').addEventListener('click', () => runSetupAction('primary'));
+  document.getElementById('setupActionSecondary').addEventListener('click', () => runSetupAction('secondary'));
 
   document.getElementById('validateVlessBtn').addEventListener('click', () => {
     const url = document.getElementById('onboardingVless').value.trim();
@@ -190,31 +226,7 @@ function bindActions() {
   });
 
   document.getElementById('runPreflightOnboarding').addEventListener('click', async () => {
-    const btn = document.getElementById('runPreflightOnboarding');
-    btn.disabled = true;
-    try {
-      const result = await chrome.runtime.sendMessage({ action: 'runPreflight' });
-      const extOk = result.local?.ok;
-      const nativeOk = result.native?.ok;
-      const lines = [];
-      if (result.local?.checks) {
-        lines.push('Расширение: ' + formatChecks(result.local));
-      }
-      if (result.native?.checks) {
-        lines.push('Go-сервис: ' + formatChecks(result.native));
-      } else if (result.native?.error) {
-        lines.push('Go-сервис: ' + result.native.error);
-      }
-      showStepResult(
-        'testStepResult',
-        lines.join('\n\n') || 'Проверка завершена',
-        extOk && nativeOk ? 'success' : 'error'
-      );
-    } catch (error) {
-      showStepResult('testStepResult', error.message, 'error');
-    } finally {
-      btn.disabled = false;
-    }
+    await runOnboardingPreflight();
   });
 
   document.getElementById('enableVpnOnboarding').addEventListener('click', async () => {
@@ -235,11 +247,13 @@ function bindActions() {
     }
   });
 
-  chrome.storage.local.get(['vlessConfig']).then((data) => {
-    if (data.vlessConfig) {
-      document.getElementById('onboardingVless').value = data.vlessConfig;
-    }
-  });
+  if (hasExtensionRuntime()) {
+    chrome.storage.local.get(['vlessConfig']).then((data) => {
+      if (data.vlessConfig) {
+        document.getElementById('onboardingVless').value = data.vlessConfig;
+      }
+    });
+  }
 }
 
 function validateVlessMessage(url) {
@@ -252,7 +266,221 @@ function validateVlessMessage(url) {
 
 function formatChecks(report) {
   if (!report?.checks) return report?.error || '(нет данных)';
-  return report.checks.map((c) => `${c.ok ? '✓' : '✗'} ${c.message}`).join('; ');
+  return report.checks.map((c) => `${c.ok ? 'OK' : 'FAIL'} ${c.message}`).join('; ');
+}
+
+async function runOnboardingPreflight(options = {}) {
+  const silent = !!options.silent;
+  const btn = document.getElementById('runPreflightOnboarding');
+  if (!silent) btn.disabled = true;
+  setSetupStatus('statusExtension', 'unknown', 'Проверка...');
+  setSetupStatus('statusNative', 'unknown', 'Проверка...');
+  setSetupStatus('statusXray', 'unknown', 'Проверка...');
+  setSetupStatus('statusVless', 'unknown', 'Проверка...');
+  hideRepairCommand();
+
+  if (!hasExtensionRuntime()) {
+    setSetupStatus('statusExtension', 'warn', 'Preview');
+    setSetupStatus('statusNative', 'unknown', 'Только в Chrome');
+    setSetupStatus('statusXray', 'unknown', 'Нет данных');
+    setSetupStatus('statusVless', 'unknown', 'Нет данных');
+    showRepairCommand('cd proxy-service\n.\\install.bat');
+    renderSetupActions({
+      primaryAction: { type: 'copy', target: 'repairCommand', label: 'Копировать install command' },
+      secondaryAction: { type: 'url', url: 'https://github.com/XTLS/Xray-core/releases', label: 'Открыть Xray releases' }
+    });
+    if (!silent) {
+      showStepResult('testStepResult', 'Проверка зависимостей доступна после загрузки расширения в Chrome.', 'info');
+    }
+    if (!silent) btn.disabled = false;
+    return false;
+  }
+
+  try {
+    const result = await chrome.runtime.sendMessage({ action: 'runPreflight' });
+    const summary = summarizePreflight(result);
+    setSetupStatus('statusExtension', summary.extension.status, summary.extension.text);
+    setSetupStatus('statusNative', summary.native.status, summary.native.text);
+    setSetupStatus('statusXray', summary.xray.status, summary.xray.text);
+    setSetupStatus('statusVless', summary.vless.status, summary.vless.text);
+
+    if (summary.repairCommand) {
+      showRepairCommand(summary.repairCommand);
+    }
+    renderSetupActions(summary);
+    if (!silent || !summary.ok) {
+      showStepResult(
+        'testStepResult',
+        summary.message,
+        summary.ok ? 'success' : 'error'
+      );
+    }
+    return summary.ok;
+  } catch (error) {
+    setSetupStatus('statusExtension', 'error', 'Ошибка');
+    setSetupStatus('statusNative', 'error', 'Ошибка');
+    setSetupStatus('statusXray', 'unknown', 'Нет данных');
+    setSetupStatus('statusVless', 'unknown', 'Нет данных');
+    showRepairCommand('cd proxy-service\n.\\install.bat');
+    renderSetupActions({
+      primaryAction: { type: 'copy', target: 'repairCommand', label: 'Копировать install command' },
+      secondaryAction: { type: 'url', url: 'https://github.com/XTLS/Xray-core/releases', label: 'Открыть Xray releases' }
+    });
+    showStepResult('testStepResult', error.message, 'error');
+    return false;
+  } finally {
+    if (!silent) btn.disabled = false;
+  }
+}
+
+function summarizePreflight(result) {
+  const local = result?.local;
+  const native = result?.native;
+  const localChecks = local?.checks || [];
+  const nativeChecks = native?.checks || [];
+  const runtimeId = chrome.runtime.id;
+
+  const localVless = localChecks.find((c) => c.id === 'vless_local');
+  const nativeXray = nativeChecks.find((c) => c.id === 'xray_binary' || /xray/i.test(c.message || ''));
+  const nativeConnected = !native?.error;
+  const nativeOk = native?.ok === true;
+  const localOk = local?.ok === true;
+  const xrayOk = nativeXray ? !!nativeXray.ok : nativeOk;
+  const vlessOk = localVless ? !!localVless.ok : false;
+
+  let repairCommand = '';
+  let primaryAction = null;
+  let secondaryAction = null;
+  if (!nativeConnected || /not found|forbidden|denied|native host/i.test(native?.error || '')) {
+    repairCommand = `cd proxy-service\n.\\install.ps1 -ExtensionId ${runtimeId} -Build`;
+    primaryAction = { type: 'copy', target: 'repairCommand', label: 'Копировать install command' };
+    secondaryAction = { type: 'url', url: 'chrome://extensions/', label: 'Открыть extensions' };
+  } else if (!xrayOk) {
+    repairCommand = 'cd proxy-service\npowershell -File ..\\scripts\\check-env.ps1\n# Скачайте Xray-core и положите xray.exe в .\\xray-core\\';
+    primaryAction = { type: 'url', url: 'https://github.com/XTLS/Xray-core/releases', label: 'Открыть Xray releases' };
+    secondaryAction = { type: 'copy', target: 'repairCommand', label: 'Копировать команду' };
+  } else if (!vlessOk) {
+    repairCommand = '# Вернитесь на шаг VLESS URL и сохраните валидную vless:// ссылку';
+    primaryAction = { type: 'step', step: 4, label: 'К шагу VLESS' };
+  } else if (localOk && nativeOk) {
+    primaryAction = { type: 'settings', label: 'Открыть настройки' };
+  }
+
+  const lines = [];
+  if (localChecks.length) lines.push('Расширение: ' + formatChecks(local));
+  if (nativeChecks.length) lines.push('Go-сервис: ' + formatChecks(native));
+  else if (native?.error) lines.push('Go-сервис: ' + native.error);
+
+  return {
+    ok: localOk && nativeOk,
+    extension: {
+      status: localOk ? 'ok' : 'error',
+      text: localOk ? 'OK' : 'Есть ошибки'
+    },
+    native: {
+      status: nativeConnected ? (nativeOk ? 'ok' : 'error') : 'error',
+      text: nativeConnected ? (nativeOk ? 'Подключён' : 'Preflight failed') : 'Недоступен'
+    },
+    xray: {
+      status: xrayOk ? 'ok' : 'error',
+      text: xrayOk ? 'Найден' : 'Проверьте xray.exe'
+    },
+    vless: {
+      status: vlessOk ? 'ok' : 'error',
+      text: vlessOk ? 'Формат OK' : 'Нужен VLESS URL'
+    },
+    repairCommand,
+    primaryAction,
+    secondaryAction,
+    message: lines.join('\n\n') || 'Проверка завершена'
+  };
+}
+
+function setSetupStatus(id, status, text) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.dataset.status = status;
+  const value = el.querySelector('strong');
+  if (value) value.textContent = text;
+}
+
+function showRepairCommand(command) {
+  document.getElementById('repairCommand').textContent = command;
+  document.getElementById('repairCommandBlock').hidden = false;
+}
+
+function hideRepairCommand() {
+  document.getElementById('repairCommandBlock').hidden = true;
+}
+
+function renderSetupActions(summary) {
+  const row = document.getElementById('setupActionRow');
+  const primary = document.getElementById('setupActionPrimary');
+  const secondary = document.getElementById('setupActionSecondary');
+
+  setupActionState.primary = summary.primaryAction || null;
+  setupActionState.secondary = summary.secondaryAction || null;
+
+  if (!setupActionState.primary && !setupActionState.secondary) {
+    row.hidden = true;
+    return;
+  }
+
+  row.hidden = false;
+  primary.hidden = !setupActionState.primary;
+  primary.textContent = setupActionState.primary?.label || 'Действие';
+  secondary.hidden = !setupActionState.secondary;
+  secondary.textContent = setupActionState.secondary?.label || 'Дополнительно';
+}
+
+const setupActionState = {
+  primary: null,
+  secondary: null
+};
+
+function runSetupAction(slot) {
+  const action = setupActionState[slot];
+  if (!action) return;
+  if (action.type === 'copy') {
+    const btn = slot === 'primary'
+      ? document.getElementById('setupActionPrimary')
+      : document.getElementById('setupActionSecondary');
+    copyText(document.getElementById(action.target)?.textContent || '', btn);
+    return;
+  }
+  if (action.type === 'url') {
+    openUrl(action.url);
+    return;
+  }
+  if (action.type === 'step') {
+    showStep(action.step);
+    return;
+  }
+  if (action.type === 'settings') {
+    if (hasExtensionRuntime()) {
+      chrome.runtime.openOptionsPage();
+    } else {
+      showToast('Settings доступны после загрузки расширения в Chrome.', 'error');
+    }
+  }
+}
+
+function openUrl(url) {
+  if (!url) return;
+  const onOpenFailed = (message) => {
+    copyText(url);
+    showToast(`Не удалось открыть: ${message}. Адрес скопирован.`, 'error');
+  };
+  try {
+    chrome.tabs.create({ url }, () => {
+      const err = chrome.runtime.lastError;
+      if (err) {
+        onOpenFailed(err.message);
+      }
+    });
+  } catch (error) {
+    onOpenFailed(error.message);
+  }
 }
 
 function showStepResult(elementId, message, type) {
@@ -263,6 +491,10 @@ function showStepResult(elementId, message, type) {
 }
 
 async function finishOnboarding(skipped = false) {
+  if (!hasExtensionRuntime()) {
+    showToast('Завершение мастера доступно после загрузки расширения в Chrome.', 'error');
+    return;
+  }
   await chrome.runtime.sendMessage({ action: 'completeOnboarding', skipped });
   showToast(skipped ? 'Мастер пропущен' : 'Настройка завершена', 'success');
   try {

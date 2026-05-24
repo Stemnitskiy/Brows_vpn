@@ -13,6 +13,7 @@
 | [SECURITY.md](./SECURITY.md) | Разработчик / ops | P0–P2 hardening |
 | [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) | Разработчик | Этапы v1/v2/v3 |
 | [QUICK_START.md](./QUICK_START.md) | Разработчик | Сборка и загрузка |
+| [RELEASE_CHECKLIST.md](./RELEASE_CHECKLIST.md) | Разработчик | Финальная проверка перед GitHub release |
 
 ---
 
@@ -23,6 +24,8 @@
 | [CURRENT_STATUS.md](./CURRENT_STATUS.md) | ✅ |
 | [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) | ✅ v2.12 security |
 | [ROADMAP.md](./ROADMAP.md) | ✅ |
+| [GITHUB_RELEASE_HARDENING_ROADMAP.md](./GITHUB_RELEASE_HARDENING_ROADMAP.md) | ✅ подготовка к GitHub |
+| [RELEASE_CHECKLIST.md](./RELEASE_CHECKLIST.md) | ✅ release gate |
 | [FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md) | ✅ |
 | [SECURITY.md](./SECURITY.md) | ✅ |
 | [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) | 📦 Архив (устаревший заголовок) |
