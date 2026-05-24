@@ -8,7 +8,7 @@
 git status --short
 git ls-files *.pem secrets/*.pem
 git archive HEAD | tar -t | rg "\.pem$|xray-config|access\.log|error\.log|\.exe$"
-powershell -File .\make-clean-archive.ps1 -Mode git
+powershell -File .\scripts\make-clean-archive.ps1 -Mode git
 ```
 
 Ожидаемо: PEM, runtime config, логи, cleanup-скрипты и `.exe` не попадают в tracked files / clean archive.

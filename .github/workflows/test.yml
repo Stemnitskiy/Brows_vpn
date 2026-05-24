@@ -63,4 +63,4 @@ jobs:
         with:
           node-version: '20'
       - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-env.ps1 -Ci
-      - run: powershell -NoProfile -ExecutionPolicy Bypass -File .\make-clean-archive.ps1 -Mode git -OutputPath dist\ci-clean.zip
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\make-clean-archive.ps1 -Mode git -OutputPath dist\ci-clean.zip

@@ -114,7 +114,7 @@ Invoke-GateStep "Environment release check" {
 if (-not $SkipArchive) {
     Invoke-GateStep "Clean archive verification" {
         Invoke-InLocation $Root {
-            powershell -NoProfile -ExecutionPolicy Bypass -File .\make-clean-archive.ps1 -Mode git -OutputPath $ArchiveOutput
+            powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\make-clean-archive.ps1 -Mode git -OutputPath $ArchiveOutput
         }
     }
 }

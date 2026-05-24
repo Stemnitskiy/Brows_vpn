@@ -47,6 +47,8 @@ proxy-service/browsvpn-proxy.exe
 proxy-service/browsvpn-proxy.exe~
 prepare-github-clean*.ps1
 run-github-clean*.bat
+/make-clean-archive.bat
+/make-clean-archive.ps1
 *_CLEAN_REPORT.md
 
 # Logs

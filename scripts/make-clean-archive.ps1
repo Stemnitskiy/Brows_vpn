@@ -24,10 +24,10 @@
   Do not verify the final archive contents. Verification is enabled by default.
 
 .EXAMPLE
-  .\make-clean-archive.ps1
+  .\scripts\make-clean-archive.ps1
 
 .EXAMPLE
-  .\make-clean-archive.ps1 -Mode worktree -IncludeBuildOutputs
+  .\scripts\make-clean-archive.ps1 -Mode worktree -IncludeBuildOutputs
 #>
 [CmdletBinding()]
 param(
@@ -44,7 +44,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-$Root = $PSScriptRoot
+$Root = Split-Path -Parent $PSScriptRoot
 $DistDir = Join-Path $Root 'dist'
 
 function Write-Utf8NoBom {

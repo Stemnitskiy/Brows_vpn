@@ -47,7 +47,7 @@ git check-ignore -v secrets\chrome-extension-github.pem proxy-service\xray-core\
 rg -n "(ghp_|github_pat_|sk-|BEGIN (RSA|OPENSSH|PRIVATE) KEY|vless://)" -S -g "!dist/**" -g "!proxy-service/xray-core/**" .
 ```
 
-**Статус:** implemented in P0/P3: `.gitignore` covers local artifacts; `scripts/check-env.ps1 -Release` checks tracked PEM/runtime artifacts and scans tracked files for token/private-key/real VLESS patterns. `make-clean-archive.ps1` now verifies the final zip and removes cleanup scripts from both git/worktree archives.
+**Статус:** implemented in P0/P3: `.gitignore` covers local artifacts; `scripts/check-env.ps1 -Release` checks tracked PEM/runtime artifacts and scans tracked files for token/private-key/real VLESS patterns. `scripts/make-clean-archive.ps1` now verifies the final zip and removes cleanup scripts from both git/worktree archives.
 
 **Готово, когда:** публичный архив/репозиторий не содержит приватного PEM, VLESS URL, runtime config, логов и локальных binaries.
 
@@ -180,7 +180,7 @@ node scripts\test-pac-whitelist.js
 
 **Проверка:** PR не merge, если сломан runtime/security gate.
 
-**Статус:** implemented in P2 pass 1/P3 pass 3: GitHub Actions now runs `go vet`, JSON manifest parse check, runtime `npm audit`, Windows `check-env.ps1 -Ci`, and clean archive verification via `make-clean-archive.ps1`.
+**Статус:** implemented in P2 pass 1/P3 pass 3: GitHub Actions now runs `go vet`, JSON manifest parse check, runtime `npm audit`, Windows `check-env.ps1 -Ci`, and clean archive verification via `scripts/make-clean-archive.ps1`.
 
 **Готово, когда:** каждый push/PR проверяет минимальный набор безопасности.
 
