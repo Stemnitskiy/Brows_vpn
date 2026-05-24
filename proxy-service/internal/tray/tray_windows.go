@@ -95,7 +95,7 @@ func (t *TrayManager) onExit() {
 
 // UpdateStatus updates the tray status
 func (t *TrayManager) UpdateStatus(enabled bool) {
-	// State is managed internally in the menu click handlers until v3 tray work lands.
+	// State is managed internally in the menu click handlers until platform tray work lands.
 }
 
 // Quit quits the system tray

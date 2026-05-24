@@ -1,6 +1,6 @@
 # Brows VPN — Инструкция по установке и запуску
 
-> **Статус:** ✅ Актуально для extension **v2.2.1**  
+> **Статус:** ✅ Актуально для extension **v3.0.0**
 > **Безопасность (NM token):** [SECURITY.md](./SECURITY.md)  
 > **Краткий старт:** [QUICK_START.md](./QUICK_START.md)
 

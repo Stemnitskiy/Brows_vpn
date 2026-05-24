@@ -1,9 +1,10 @@
 # Brows VPN — Текущий статус разработки
 
-> **Обновлено:** 2026-05-22  
+> **Обновлено:** 2026-05-24
 > **Веха v1:** ✅ первое рабочее MVP (`2310c6d`)  
-> **Следующий фокус:** v3 отложен (tray, multi-protocol) — см. [FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md)  
-> **Веха v2:** ✅ extension **v2.2.1** (v2.1–v2.12)  
+> **Веха v3.0.0:** ✅ GitHub release hardening + onboarding/install automation
+> **Следующий фокус:** platform backlog (tray, multi-protocol) — см. [FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md)
+> **Веха v2:** ✅ extension **v2.2.1** (v2.1–v2.12)
 > **Безопасность:** [SECURITY.md](./SECURITY.md)  
 > **План:** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) · **Решения:** [FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md)
 
@@ -30,7 +31,8 @@
 | **v2.10** | ✅ | Тёмная тема (extension v2.0.0) |
 | **v2.11** | ✅ | Полировка UI настроек (extension v2.1.0) |
 | **v2.12** | ✅ | Security hardening P0–P2 (extension v2.2.1, NM origin deny-by-default) |
-| **v3** (tray, multi-protocol, …) | ⏸ | Отложено |
+| **v3.0.0** | ✅ | GitHub release hardening, release gate, onboarding/install automation |
+| **Platform backlog** (tray, multi-protocol, …) | ⏸ | Отложено |
 
 ---
 
@@ -60,6 +62,7 @@
 | v2.10 | ✅ Тёмная тема | extension **v2.0.0** |
 | v2.11 | ✅ Полировка UI | extension **v2.1.0** |
 | v2.12 | ✅ Security P0–P2 + NM hardening | extension **v2.2.1** |
+| v3.0.0 | ✅ GitHub release hardening + onboarding/install automation | extension **v3.0.0** |
 
 ---
 

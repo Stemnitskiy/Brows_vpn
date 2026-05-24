@@ -1,7 +1,7 @@
 # Brows VPN - API Documentation
 
 > **Обновлено:** 2026-05-22  
-> **Статус:** актуальная Native Messaging спецификация v2.2.1. Реализованы `enable_vpn`, `disable_vpn`, `get_status`, `preflight`, `health_check`, `get_logs`, `find_free_port`.
+> **Статус:** актуальная Native Messaging спецификация v3.0.0. Реализованы `enable_vpn`, `disable_vpn`, `get_status`, `preflight`, `health_check`, `get_logs`, `find_free_port`.
 > **План:** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)
 
 ## Native Messaging Protocol
@@ -735,7 +735,7 @@ interface LogEntry {
 | Chrome length-prefixed framing (4 byte LE + JSON) | ✅ `internal/messaging/host.go` |
 | JSON host manifest + `allowed_origins` | ✅ `com.browsvpn.host.json` |
 | Registry → path to manifest | ✅ `install.ps1` / `setup_registry.bat` |
-| Caller origin fail-closed gate | ✅ v2.2.1 — `origin.go` deny if manifest missing/broken/empty/placeholder; `[a-p]{32}` only — [SECURITY.md](./SECURITY.md) |
+| Caller origin fail-closed gate | ✅ v3.0.0 — `origin.go` deny if manifest missing/broken/empty/placeholder; `[a-p]{32}` only — [SECURITY.md](./SECURITY.md) |
 
 ### Commands
 

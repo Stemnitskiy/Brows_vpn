@@ -2,7 +2,7 @@
 
 package tray
 
-// TrayManager is a no-op stub until v3 system tray support ships.
+// TrayManager is a no-op stub until platform tray support ships.
 type TrayManager struct {
 	enabled bool
 }

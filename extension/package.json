@@ -1,6 +1,6 @@
 {
   "name": "browsvpn",
-  "version": "2.2.1",
+  "version": "3.0.0",
   "description": "Browser extension with VLESS VPN integration for selective site proxying",
   "author": "Brows VPN",
   "license": "MIT",

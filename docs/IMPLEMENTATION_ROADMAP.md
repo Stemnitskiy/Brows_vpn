@@ -3,7 +3,7 @@
 > **Обновлено:** 2026-05-22  
 > **MVP v1:** ✅ завершён (первое рабочее E2E)  
 > **Активная работа:** v2 (см. [FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md))  
-> **Бэклог решений:** что в v2 / v3 / отклонено — только в FEATURE_BACKLOG
+> **Бэклог решений:** что в v2 / v3.0.0 / platform backlog / отклонено — только в FEATURE_BACKLOG
 
 ---
 
@@ -23,7 +23,8 @@
 |--------|--------|------------|
 | **v1 MVP** | ✅ Done | NM + Xray + selective/global PAC, preflight, health, UI popup/settings |
 | **v2** | ✅ Done | Per-site add … dark theme, UI polish, **security hardening** |
-| **v3** | ⏸ Paused | Tray, multi-protocol, Firefox — не начато |
+| **v3.0.0** | ✅ Done | GitHub release hardening + onboarding/install automation |
+| **Platform backlog** | ⏸ Paused | Tray, multi-protocol, Firefox — не начато |
 
 ---
 
@@ -180,7 +181,7 @@
 
 ## v2.11 — Полировка UI настроек ✅
 
-**Цель:** упростить страницу настроек перед v3.
+**Цель:** упростить страницу настроек перед platform backlog.
 
 | # | Задача | Файлы |
 |---|--------|-------|
@@ -218,7 +219,7 @@
 
 ---
 
-# v3 — Платформа (позже)
+# Platform backlog — Платформа (позже)
 
 | Блок | Задачи |
 |------|--------|
@@ -234,7 +235,7 @@
 # Архив: старые этапы 1–6 (история)
 
 Этапы 1–4 старого плана **поглощены v1** (ядро, UX, health).  
-Tray перенесён в **v3**. Import/export и blacklist — в **v2.7 / v2.2**.
+Tray перенесён в **platform backlog**. Import/export и blacklist — в **v2.7 / v2.2**.
 
 ---
 

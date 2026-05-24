@@ -2,7 +2,7 @@
 
 > **Обновлено:** 2026-05-22  
 > **SOCKS по умолчанию:** `10808` (не 1080).  
-> Описывает **целевую** архитектуру. Tray, multi-protocol — **v3**, отложено ([FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md)).  
+> Описывает **целевую** архитектуру. Tray, multi-protocol — platform backlog, отложено ([FEATURE_BACKLOG.md](./FEATURE_BACKLOG.md)).
 > **Фактическое состояние:** [CURRENT_STATUS.md](./CURRENT_STATUS.md) · [SECURITY.md](./SECURITY.md)
 
 ## Два слоя (не «просто PAC»)

@@ -1,8 +1,8 @@
 # Brows VPN — Security
 
-> **Extension:** v2.2.1 · **Обновлено:** 2026-05-22
+> **Extension:** v3.0.0 · **Обновлено:** 2026-05-24
 
-Документ описывает модель угроз, реализованные меры (P0–P2) и рекомендации по эксплуатации. **v3 (tray, multi-protocol) в scope не входит.**
+Документ описывает модель угроз, реализованные меры (P0–P2) и рекомендации по эксплуатации. Tray и multi-protocol в scope v3.0.0 не входят.
 
 ---
 
@@ -43,7 +43,7 @@
 | Explicit CSP | `manifest.json` |
 | `sender.id` check на privileged messages | `background.js` |
 
-### P2 — качество и privacy (не v3)
+### P2 — качество и privacy
 
 | Мера | Где |
 |------|-----|

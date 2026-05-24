@@ -99,12 +99,15 @@ Set-Content -Encoding ASCII .\xray-core\xray.exe.sha256 "&lt;SHA256_FROM_PREVIOU
     </section>
 
     <section class="card wizard-step" data-step="3">
-      <h2>Шаг 3 — Загрузка расширения</h2>
-      <p class="step-lead">Подключите unpacked-расширение и проверьте связь с Go-сервисом.</p>
+      <h2>Шаг 3 — Проверка расширения</h2>
+      <p class="step-lead">
+        Расширение уже загружено. Теперь нужно сверить его ID и убедиться, что native host
+        зарегистрирован именно для этого ID.
+      </p>
       <ol>
-        <li>На <code>chrome://extensions/</code> включите <strong>Режим разработчика</strong></li>
-        <li><strong>Load unpacked</strong> → выберите папку <code>…\Brows_vpn\extension</code></li>
-        <li>Не выбирайте корень <code>Brows_vpn</code> — там нет <code>manifest.json</code></li>
+        <li>Сравните текущий ID с ожидаемым GitHub/unpacked ID ниже</li>
+        <li>Если ID отличается, скопируйте repair command и перерегистрируйте native host</li>
+        <li>После регистрации перезапустите Chrome и нажмите «Проверить снова»</li>
       </ol>
       <div class="diag-identity onboarding-identity" id="onboardingIdentityPanel">
         <div class="diag-identity-row">
@@ -122,7 +125,7 @@ Set-Content -Encoding ASCII .\xray-core\xray.exe.sha256 "&lt;SHA256_FROM_PREVIOU
         </div>
       </div>
       <div id="idMismatchHint" class="step-result info" hidden></div>
-      <p class="field-hint">При несовпадении ID (другой unpacked-ключ) выполните override:</p>
+      <p class="field-hint">Repair command для текущего Extension ID:</p>
       <div class="code-block">
         <pre id="cmdOrigins">cd proxy-service
 .\install.ps1 -ExtensionId EXT_ID -Build</pre>
@@ -130,7 +133,7 @@ Set-Content -Encoding ASCII .\xray-core\xray.exe.sha256 "&lt;SHA256_FROM_PREVIOU
       </div>
       <div class="btn-row">
         <button type="button" class="btn btn-secondary" id="refreshSetupStatusBtn">Проверить снова</button>
-        <button type="button" class="btn btn-secondary" id="openExtensionsPageBtn">Открыть chrome://extensions</button>
+        <button type="button" class="btn btn-secondary" id="openExtensionsPageBtn">Открыть страницу расширений</button>
       </div>
     </section>
 
@@ -207,7 +210,7 @@ Set-Content -Encoding ASCII .\xray-core\xray.exe.sha256 "&lt;SHA256_FROM_PREVIOU
       <button type="button" class="btn btn-primary" id="wizardNext">Далее</button>
     </nav>
 
-    <footer class="page-footer">Brows VPN v2.2.1</footer>
+    <footer class="page-footer">Brows VPN v3.0.0</footer>
   </div>
 
   <script src="validators.js"></script>

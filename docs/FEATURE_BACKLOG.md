@@ -2,7 +2,7 @@
 
 > **Обновлено:** 2026-05-22  
 > **MVP (v1):** ✅ первое рабочее — коммит `2310c6d`  
-> **Следующая разработка:** v2 → v3 (см. [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md))
+> **Следующая разработка:** platform backlog после v3.0.0 (см. [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md))
 
 ---
 
@@ -17,8 +17,8 @@
 | Проверить, что SOCKS реально слушает, процесс жив | ❌ | ✅ preflight / health_check |
 | Подобрать свободный порт, писать access/error логи | ❌ | ✅ |
 | Перезапустить Xray при падении | ❌ | ✅ (v2: явная политика) |
-| В будущем: другие протоколы, не только VLESS | ❌ | ✅ заложено в v3 |
-| В будущем: tray без Chrome | ❌ | ✅ v3 |
+| В будущем: другие протоколы, не только VLESS | ❌ | ✅ platform backlog |
+| В будущем: tray без Chrome | ❌ | ✅ platform backlog |
 
 **Extension** отвечает за UX Chrome: PAC, whitelist, popup, контекстное меню.  
 **Go + Native Messaging** — за **data plane** и **control plane** VPN: Xray, конфиг, health, restart.  
@@ -45,7 +45,7 @@
 | 18 | **Onboarding wizard** | Первый запуск: exe → registry → extension ID → VLESS → тест → OK. |
 | 19 | **Тёмная тема** | Settings (+ опционально popup), sync с `prefers-color-scheme`. |
 
-### 📋 v3 — отложено
+### 📋 Platform backlog — отложено
 
 | # | Функция | Примечание |
 |---|---------|------------|
@@ -91,6 +91,6 @@ v2.10 Dark theme
 
 | Документ | Назначение |
 |----------|------------|
-| [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) | Этапы v1 (done) + v2 + v3 |
+| [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) | Этапы v1/v2/v3.0.0 + platform backlog |
 | [CURRENT_STATUS.md](./CURRENT_STATUS.md) | Текущий прогресс |
 | [ROADMAP.md](./ROADMAP.md) | Краткая сводка версий |

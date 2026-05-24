@@ -1,6 +1,6 @@
 # Brows VPN — Browser Extension with VLESS Integration
 
-> **Статус:** v2 завершён (extension **v2.2.1**), hardening P0–P2 ✅  
+> **Статус:** v3.0.0 зафиксирован: MVP + UX/routing + GitHub release hardening ✅
 > **Безопасность:** [SECURITY.md](docs/SECURITY.md) · **Release gate:** [RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)
 
 ---
@@ -17,7 +17,7 @@ Brows VPN — расширение Chromium (Windows) для выборочно�
 
 | Способ | Ссылка |
 |--------|--------|
-| Clean archive | [Brows_vpn-v2.2.1-clean.zip](https://github.com/Stemnitskiy/Brows_vpn/releases/download/v2.2.1/Brows_vpn-v2.2.1-clean.zip) |
+| Clean archive | [Brows_vpn-v3.0.0-clean.zip](https://github.com/Stemnitskiy/Brows_vpn/releases/download/v3.0.0/Brows_vpn-v3.0.0-clean.zip) |
 | Все релизы | [Releases](https://github.com/Stemnitskiy/Brows_vpn/releases) |
 
 ---
@@ -32,9 +32,9 @@ Brows VPN — расширение Chromium (Windows) для выборочно�
 | Preflight, health, recovery (3× → disable) | ✅ |
 | Smart routing, context menu, onboarding | ✅ |
 | Dark theme, diagnostics page | ✅ |
-| Security hardening P0–P2 | ✅ v2.2.1 |
+| Security hardening P0–P2 | ✅ v3.0.0 |
 
-**Не в scope (v3):** system tray, multi-protocol, Firefox/Edge.
+**Не в scope v3.0.0:** system tray, multi-protocol, Firefox/Edge.
 
 ---
 
@@ -105,7 +105,7 @@ powershell -File .\scripts\check-env.ps1 -Fix -Release
 ```
 Brows_vpn/
 ├── docs/                 # Документация
-├── extension/            # ← Load unpacked в Chrome (manifest v2.2.1)
+├── extension/            # ← Load unpacked в Chrome (manifest v3.0.0)
 ├── proxy-service/        # Go native host + install.bat + xray-core/
 └── scripts/              # PAC / import tests, extension identity
 ```

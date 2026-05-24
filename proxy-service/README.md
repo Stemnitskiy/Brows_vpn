@@ -1,7 +1,7 @@
 # Brows VPN — Proxy Service
 
 > **Статус:** ✅ Production path — Native Messaging host + Xray controller  
-> **Extension:** v2.2.1 · **SOCKS:** `127.0.0.1:10808`  
+> **Extension:** v3.0.0 · **SOCKS:** `127.0.0.1:10808`
 > **Security:** [../docs/SECURITY.md](../docs/SECURITY.md)
 
 ---
@@ -53,7 +53,7 @@ Protocol: **4-byte LE length + JSON** (not line-delimited). See [../docs/API.md]
 
 ```
 proxy-service/
-├── cmd/main.go              # Entry; --standalone stub (v3 tray)
+├── cmd/main.go              # Entry; --standalone reserved for platform backlog
 ├── internal/messaging/      # NM host, handler, auth
 ├── internal/xray/           # Process + integrity check
 ├── internal/singleinstance/ # Windows mutex

@@ -1,6 +1,6 @@
 # Brows VPN — Индекс документации
 
-> **Обновлено:** 2026-05-22 · Extension **v2.2.1**
+> **Обновлено:** 2026-05-24 · Extension **v3.0.0**
 
 ---
 
@@ -11,7 +11,7 @@
 | [README.md](./README.md) | Все | Обзор проекта |
 | [CURRENT_STATUS.md](./CURRENT_STATUS.md) | Разработчик | **Source of truth** — что работает |
 | [SECURITY.md](./SECURITY.md) | Разработчик / ops | P0–P2 hardening |
-| [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) | Разработчик | Этапы v1/v2/v3 |
+| [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) | Разработчик | Этапы v1/v2 и backlog платформы |
 | [QUICK_START.md](./QUICK_START.md) | Разработчик | Сборка и загрузка |
 | [RELEASE_CHECKLIST.md](./RELEASE_CHECKLIST.md) | Разработчик | Финальная проверка перед GitHub release |
 

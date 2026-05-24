@@ -1,9 +1,9 @@
 # Brows VPN — Browser Extension with VLESS Integration
 
-> **Статус:** v2 завершён (extension **v2.2.1**), hardening P0–P2 ✅  
+> **Статус:** v3.0.0 зафиксирован: MVP + UX/routing + GitHub release hardening ✅
 > **Актуальный прогресс:** [CURRENT_STATUS.md](./CURRENT_STATUS.md)  
 > **Безопасность:** [SECURITY.md](./SECURITY.md)  
-> **План (v3 отложен):** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)
+> **План дальнейшей платформы:** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)
 
 ---
 
@@ -23,9 +23,9 @@ Brows VPN — расширение Chromium (Windows) для выборочно�
 | Preflight, health, recovery (3× → disable) | ✅ |
 | Smart routing, context menu, onboarding | ✅ |
 | Dark theme, diagnostics page | ✅ |
-| Security hardening P0–P2 | ✅ v2.2.1 |
+| Security hardening P0–P2 | ✅ v3.0.0 |
 
-**Не в scope (v3):** system tray, multi-protocol, Firefox/Edge.
+**Не в scope v3.0.0:** system tray, multi-protocol, Firefox/Edge.
 
 ---
 
@@ -63,7 +63,7 @@ Extension ID для GitHub/unpacked релиза **стабилен** благо
 ```
 Brows_vpn/
 ├── docs/                 # Документация (CURRENT_STATUS — source of truth)
-├── extension/            # ← Загружается в Chrome (manifest v2.2.1)
+├── extension/            # ← Загружается в Chrome (manifest v3.0.0)
 ├── proxy-service/        # Go native host + Xray
 └── scripts/              # PAC / import tests, integration
 ```

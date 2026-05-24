@@ -1,7 +1,7 @@
 # Brows VPN — Quick Start (для разработчика)
 
 > **Обновлено:** 2026-05-22  
-> **Статус:** v2.2.1 — рабочий MVP + hardening  
+> **Статус:** v3.0.0 — рабочий MVP + hardening
 > **План:** [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md) · [SECURITY.md](./SECURITY.md)
 
 ---
