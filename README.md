@@ -84,19 +84,7 @@ cd proxy-service
 2. Добавьте домены в whitelist (режим *Selective*)
 3. Popup → **Enable VPN**
 
-Полная инструкция: [QUICK_START.md](docs/QUICK_START.md) · [FINAL_INSTRUCTIONS.md](docs/FINAL_INSTRUCTIONS.md)
-
-Перед публикацией:
-
-```powershell
-powershell -File .\scripts\release-gate.ps1
-```
-
-Локальный repair:
-
-```powershell
-powershell -File .\scripts\check-env.ps1 -Fix -Release
-```
+Полная инструкция: [QUICK_START.md](docs/QUICK_START.md)
 
 ---
 
@@ -109,10 +97,6 @@ Brows_vpn/
 ├── proxy-service/        # Go native host + install.bat + xray-core/
 └── scripts/              # PAC / import tests, extension identity
 ```
-
-Legacy Censor Tracker код: `extension/src/` — **не используется** в текущей сборке.
-
----
 
 ## Testing
 
